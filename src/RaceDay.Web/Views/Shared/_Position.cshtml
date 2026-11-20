@@ -1,0 +1,20 @@
+@model (int? Position, int? Of)
+@if (Model.Position is { } position)
+{
+    @if (position <= 3)
+    {
+        <span class="rd-medal rd-medal--@position" title="@Display.Ordinal(position) place">@position</span>
+    }
+    else
+    {
+        <span class="rd-position" style="font-size: 1.5rem">@position<sup>@Display.OrdinalSuffix(position)</sup></span>
+    }
+    @if (Model.Of is > 0)
+    {
+        <span class="rd-position-of ms-1">of @Model.Of</span>
+    }
+}
+else
+{
+    <span class="text-secondary">–</span>
+}

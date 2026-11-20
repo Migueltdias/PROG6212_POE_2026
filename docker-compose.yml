@@ -1,0 +1,66 @@
+name: raceday
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD:-RaceDay_Docker_2026}
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q 'SELECT 1' -o /dev/null || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -b -Q 'SELECT 1' -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data --loose --skipApiVersionCheck
+    ports:
+      - "10000:10000"
+    volumes:
+      - blobdata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: src/RaceDay.Api/Dockerfile
+    image: raceday-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+    environment:
+      ConnectionStrings__RaceDay: "Server=sqlserver,1433;Database=RaceDayApi;User Id=sa;Password=${SQL_SA_PASSWORD:-RaceDay_Docker_2026};TrustServerCertificate=True;MultipleActiveResultSets=true"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-raceday-docker-demo-signing-key-change-me-0123456789}
+      BlobStorage__ConnectionString: ${BLOB_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;}
+      BlobStorage__PublicBaseUrl: ${BLOB_PUBLIC_BASE_URL-http://localhost:10000/devstoreaccount1}
+      Database__StartupAttempts: "12"
+      Database__StartupRetrySeconds: "5"
+      Swagger__Enabled: "true"
+    ports:
+      - "5088:8080"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: src/RaceDay.Web/Dockerfile
+    image: raceday-web
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      RaceDayApi__BaseUrl: http://api:8080/
+      Demo__ShowAccounts: "true"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  sqldata:
+  blobdata:

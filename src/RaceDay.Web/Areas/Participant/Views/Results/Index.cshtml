@@ -1,0 +1,120 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model MyResultsViewModel
+@{
+    ViewData["Title"] = "My results";
+}
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">My results</span>
+        <h1>My race history</h1>
+        <p>Every finish time and placing captured by event organisers, newest race first.</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat"><div class="rd-stat-icon"><i class="bi bi-flag-fill"></i></div>
+            <div><div class="rd-stat-value">@Model.RacesFinished</div><div class="rd-stat-label">Races finished</div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat"><div class="rd-stat-icon rd-stat-icon--navy"><i class="bi bi-signpost-split-fill"></i></div>
+            <div><div class="rd-stat-value">@Display.DistanceNumber(Model.KilometresRaced)</div><div class="rd-stat-label">Kilometres raced</div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat"><div class="rd-stat-icon rd-stat-icon--sun"><i class="bi bi-trophy-fill"></i></div>
+            <div><div class="rd-stat-value">@(Model.BestPosition is { } best ? Display.Ordinal(best) : "–")</div><div class="rd-stat-label">Best placing</div></div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat"><div class="rd-stat-icon rd-stat-icon--mint"><i class="bi bi-graph-up-arrow"></i></div>
+            <div><div class="rd-stat-value">@(Model.LongestRace is { } longest ? Display.DistanceNumber(longest.DistanceKm) : "–")</div><div class="rd-stat-label">Longest race (km)</div></div></div>
+    </div>
+</div>
+
+<ul class="nav rd-tabs" aria-label="Filter by event type">
+    <li class="nav-item"><a class="nav-link @(Model.Discipline is null ? "active" : "")" asp-action="Index">All</a></li>
+    @foreach (var discipline in Disciplines.All)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(Model.Discipline == discipline ? "active" : "")" asp-action="Index" asp-route-discipline="@discipline">
+                <i class="bi @Display.DisciplineIcon(discipline) me-1"></i>@discipline
+            </a>
+        </li>
+    }
+</ul>
+
+<div class="rd-card">
+    @if (Model.Results.Items.Count == 0)
+    {
+        <div class="rd-empty">
+            <i class="bi bi-stopwatch"></i>
+            <h3>No results yet</h3>
+            <p>Once you have run an event and the organiser has captured the results, your times and placings appear here.</p>
+            <a class="btn btn-primary" asp-controller="Events" asp-action="Index">Find your next race</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table rd-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Category</th>
+                        <th scope="col" class="text-end">Finish time</th>
+                        <th scope="col">Position</th>
+                        <th scope="col">Gender / age group</th>
+                        <th scope="col">Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in Model.Results.Items)
+                    {
+                        var finished = result.ResultStatus == ResultStatuses.Finished;
+                        <tr>
+                            <td>
+                                <a class="rd-cell-title" asp-controller="Events" asp-action="Results" asp-route-id="@result.EventId">@result.EventName</a>
+                                <div class="small text-secondary">Race no. @result.RaceNumber</div>
+                            </td>
+                            <td class="text-nowrap">@Display.Date(result.EventDate)</td>
+                            <td>
+                                @result.CategoryName
+                                <div class="small text-secondary"><i class="bi @Display.DisciplineIcon(result.Discipline) me-1"></i>@result.Discipline · @Display.Distance(result.DistanceKm)</div>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (finished)
+                                {
+                                    <div class="rd-time fs-5">@Display.Duration(result.ChipTimeSeconds)</div>
+                                    <div class="small text-secondary">crossed at @(result.FinishTime?.ToString("HH:mm:ss"))</div>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">–</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @if (finished && result.OverallPosition is { } position)
+                                {
+                                    <partial name="_Position" model="(result.OverallPosition, (int?)result.FinishersInCategory)" />
+                                    <div class="small text-secondary">@Display.Ordinal(position) out of @result.FinishersInCategory finishers</div>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">–</span>
+                                }
+                            </td>
+                            <td class="small text-nowrap">
+                                @(result.GenderPosition is { } g ? Display.Ordinal(g) : "–") ·
+                                @(result.AgeGroupPosition is { } a ? Display.Ordinal(a) : "–")
+                            </td>
+                            <td><status-badge value="@result.ResultStatus" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<partial name="_Pager" model='new PagerModel(Model.Results.Page, Model.Results.TotalPages, Model.Results.TotalCount, "results")' />

@@ -1,0 +1,80 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model EnterViewModel
+@{
+    var ev = Model.Event!;
+    ViewData["Title"] = $"Enter {ev.EventName}";
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-controller="Events" asp-action="Index">Find events</a> <span>/</span>
+    <a asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a> <span>/</span> <span>Enter</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Enter event</span>
+        <h1>@ev.EventName</h1>
+        <p><i class="bi bi-calendar3 text-orange me-1"></i>@Display.LongDate(ev.EventDate) · <i class="bi bi-geo-alt-fill text-orange mx-1"></i>@ev.VenueName, @ev.City</p>
+    </div>
+</div>
+
+<form asp-action="Create" method="post" novalidate>
+    <input type="hidden" asp-for="EventId" />
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger rd-flash" role="alert"></div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <fieldset class="rd-form-section">
+                <legend class="h2 fs-4 d-flex gap-2 align-items-center mb-3"><i class="bi bi-signpost-split-fill text-orange"></i> 1. Choose your category</legend>
+                <span asp-validation-for="CategoryId" class="d-block mb-2"></span>
+                <div class="d-grid gap-3">
+                    @foreach (var category in ev.Categories)
+                    {
+                        var id = $"category-{category.CategoryId}";
+                        var full = category.PlacesLeft <= 0;
+                        <div class="rd-option">
+                            <input type="radio" name="CategoryId" id="@id" value="@category.CategoryId"
+                                   checked="@(Model.CategoryId == category.CategoryId)" disabled="@full" />
+                            <label for="@id">
+                                <span class="rd-category @(full ? "opacity-50" : "")">
+                                    <span class="d-flex align-items-center gap-3">
+                                        <span class="rd-category-distance">@Display.DistanceNumber(category.DistanceKm)<small>km</small></span>
+                                        <span>
+                                            <span class="rd-category-name d-block">@category.CategoryName</span>
+                                            <span class="rd-category-facts">
+                                                <span><i class="bi @Display.DisciplineIcon(category.Discipline) me-1"></i>@category.Discipline</span>
+                                                <span><i class="bi bi-clock me-1"></i>@Display.Time(category.StartTime)</span>
+                                                <span><i class="bi bi-person-check me-1"></i>Ages @(category.MinimumAge)+</span>
+                                                <span>@(full ? "Full" : $"{category.PlacesLeft} places left")</span>
+                                            </span>
+                                        </span>
+                                    </span>
+                                    <span class="rd-category-price ms-auto">@Display.Money(category.EntryFee)</span>
+                                </span>
+                            </label>
+                        </div>
+                    }
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="col-lg-5">
+            <section class="rd-form-section">
+                <h2><i class="bi bi-person-vcard"></i> 2. Your entry details</h2>
+                <partial name="_EntryDetailsFields" model="Model" />
+            </section>
+            <div class="rd-form-section">
+                <p class="small text-secondary">
+                    Your entry is recorded as soon as you confirm. Paid categories stay <strong>Pending</strong> until the fee is paid;
+                    free categories are confirmed straight away. Your race number is allocated now.
+                </p>
+                <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-lightning-charge-fill me-1"></i> Confirm my entry</button>
+                <a class="btn btn-light-subtle w-100 mt-2" asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">Back to the event</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

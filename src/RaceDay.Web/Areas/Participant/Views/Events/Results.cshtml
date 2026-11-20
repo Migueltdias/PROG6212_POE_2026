@@ -1,0 +1,64 @@
+@model EventResults
+@{
+    ViewData["Title"] = $"Results · {Model.EventName}";
+    var myUserId = ViewData["MyUserId"] as int? ?? 0;
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-action="Index">Find events</a> <span>/</span>
+    <a asp-action="Details" asp-route-id="@Model.EventId">@Model.EventName</a> <span>/</span> <span>Results</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Results</span>
+        <h1>@Model.EventName</h1>
+        <p>@Display.LongDate(Model.EventDate). Finishers in position order, then DNF, DNS and DQ. Your own result is highlighted.</p>
+    </div>
+    <a class="btn btn-light-subtle" asp-controller="Results" asp-action="Index"><i class="bi bi-trophy me-1"></i> My results</a>
+</div>
+
+@foreach (var category in Model.Categories)
+{
+    var finishers = category.Results.Count(r => r.ResultStatus == ResultStatuses.Finished);
+    <section class="rd-card mb-4">
+        <div class="rd-card-header">
+            <h2><i class="bi @Display.DisciplineIcon(category.Discipline)"></i> @category.CategoryName</h2>
+            <span class="rd-chip">@Display.Distance(category.DistanceKm) · @finishers finishers</span>
+        </div>
+        @if (category.Results.Count == 0)
+        {
+            <p class="text-secondary p-4 mb-0">No results have been captured for this category yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table rd-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Pos.</th>
+                            <th scope="col">Race no.</th>
+                            <th scope="col">Participant</th>
+                            <th scope="col">Result</th>
+                            <th scope="col" class="text-end">Time</th>
+                            <th scope="col" class="text-end">Gender pos.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in category.Results)
+                        {
+                            <tr class="@(row.ParticipantId == myUserId ? "table-warning" : "")">
+                                <td><partial name="_Position" model="(row.OverallPosition, (int?)null)" /></td>
+                                <td><span class="rd-bib">@row.RaceNumber</span></td>
+                                <td class="fw-semibold">@row.ParticipantName @if (row.ParticipantId == myUserId) { <span class="badge text-bg-warning ms-1">You</span> }</td>
+                                <td><status-badge value="@row.ResultStatus" short="true" /></td>
+                                <td class="text-end rd-time">@Display.Duration(row.ChipTimeSeconds)</td>
+                                <td class="text-end">@(row.GenderPosition is { } g ? Display.Ordinal(g) : "–")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}

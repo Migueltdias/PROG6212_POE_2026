@@ -1,0 +1,11 @@
+@foreach (var (key, css, icon) in Flash.All)
+{
+    if (TempData[key] is string message && !string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert @css rd-flash alert-dismissible fade show mb-4" role="@(css == "alert-danger" ? "alert" : "status")">
+            <i class="bi @icon" aria-hidden="true"></i>
+            <div>@message</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+}

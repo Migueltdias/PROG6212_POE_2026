@@ -1,0 +1,24 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model EntryDetailsInput
+<div class="row g-3">
+    <div class="col-sm-4">
+        <label asp-for="TShirtSize" class="form-label"></label>
+        <select asp-for="TShirtSize" class="form-select">
+            <option value="">No T-shirt</option>
+            @foreach (var size in TShirtSizes.All)
+            {
+                <option value="@size">@size</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-8">
+        <label asp-for="EmergencyContactName" class="form-label"></label>
+        <input asp-for="EmergencyContactName" class="form-control" autocomplete="off" />
+        <span asp-validation-for="EmergencyContactName"></span>
+    </div>
+    <div class="col-sm-8 offset-sm-4">
+        <label asp-for="EmergencyContactPhone" class="form-label"></label>
+        <input asp-for="EmergencyContactPhone" class="form-control" placeholder="0821234567" autocomplete="off" />
+        <span asp-validation-for="EmergencyContactPhone"></span>
+    </div>
+</div>

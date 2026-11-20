@@ -1,0 +1,202 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Organiser dashboard";
+    var next = Model.NextEvent;
+}
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Organiser dashboard</span>
+        <h1>Hi, @Model.FirstName</h1>
+        <p>Every event you have created, how many people have entered each one, and what is coming up next.</p>
+    </div>
+    <a class="btn btn-primary btn-lg" asp-controller="Events" asp-action="Create">
+        <i class="bi bi-plus-lg me-1"></i> New event
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat">
+            <div class="rd-stat-icon rd-stat-icon--navy"><i class="bi bi-calendar-event"></i></div>
+            <div>
+                <div class="rd-stat-value">@Model.Events.Count</div>
+                <div class="rd-stat-label">Events created</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat">
+            <div class="rd-stat-icon"><i class="bi bi-hourglass-top"></i></div>
+            <div>
+                <div class="rd-stat-value">@Model.Upcoming.Count</div>
+                <div class="rd-stat-label">Upcoming</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat">
+            <div class="rd-stat-icon rd-stat-icon--mint"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <div class="rd-stat-value">@Model.TotalEntries</div>
+                <div class="rd-stat-label">Total entries</div>
+                <div class="small text-secondary">@Model.ConfirmedEntries confirmed · @Model.PendingEntries pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="rd-stat">
+            <div class="rd-stat-icon rd-stat-icon--sun"><i class="bi bi-stopwatch"></i></div>
+            <div>
+                <div class="rd-stat-value">@Model.AwaitingResults.Count</div>
+                <div class="rd-stat-label">Awaiting results</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        @if (next is not null)
+        {
+            var days = next.EventDate.DayNumber - Model.Today.DayNumber;
+            <div class="rd-countdown d-flex flex-column">
+                <span class="rd-eyebrow text-white-50">Next up</span>
+                <h2 class="h3 mt-2 mb-1 text-white">@next.EventName</h2>
+                <div class="text-white-50 mb-3"><i class="bi bi-geo-alt-fill me-1"></i>@next.VenueName, @next.City</div>
+                <div class="d-flex align-items-end gap-3 mb-3">
+                    <div class="rd-countdown-days">@(days == 0 ? "0" : days.ToString())</div>
+                    <div class="pb-1">
+                        <div class="fw-bold">@(days == 0 ? "Race day is today!" : days == 1 ? "day to go" : "days to go")</div>
+                        <div class="small text-white-50">@Display.LongDate(next.EventDate) · @Display.Time(next.StartTime)</div>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-auto">
+                    <status-badge value="@next.EventStatus" />
+                    <span class="rd-status rd-status--confirmed"><i class="bi bi-people-fill"></i>@next.EnteredCount entered</span>
+                </div>
+                <a class="btn btn-primary mt-3 align-self-start" asp-controller="Events" asp-action="Details" asp-route-id="@next.EventId">Manage event</a>
+            </div>
+        }
+        else
+        {
+            <div class="rd-card rd-empty h-100">
+                <i class="bi bi-flag"></i>
+                <h3>Nothing on the calendar</h3>
+                <p>Create an event and publish it to open entries.</p>
+                <a class="btn btn-primary" asp-controller="Events" asp-action="Create">Create an event</a>
+            </div>
+        }
+    </div>
+    <div class="col-lg-7">
+        <div class="rd-card h-100">
+            <div class="rd-card-header">
+                <h2><i class="bi bi-calendar3"></i> Upcoming event dates</h2>
+            </div>
+            <div class="px-4">
+                @if (Model.Upcoming.Count == 0)
+                {
+                    <p class="text-secondary py-4 mb-0">No upcoming events. Past events are listed below.</p>
+                }
+                else
+                {
+                    <ul class="rd-timeline">
+                        @foreach (var ev in Model.Upcoming.Take(6))
+                        {
+                            <li>
+                                <div class="rd-date-badge position-static flex-shrink-0">
+                                    <div class="rd-date-month">@Display.Month(ev.EventDate)</div>
+                                    <div class="rd-date-day">@ev.EventDate.Day</div>
+                                    <div class="rd-date-year">@ev.EventDate.Year</div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <a class="fw-bold text-reset text-decoration-none" asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a>
+                                    <div class="small text-secondary">@Display.Relative(ev.EventDate, Model.Today) · @ev.City · @ev.EnteredCount entered</div>
+                                </div>
+                                <status-badge value="@ev.EventStatus" />
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.AwaitingResults.Count > 0)
+{
+    <div class="alert alert-warning rd-flash mb-4" role="status">
+        <i class="bi bi-stopwatch-fill" aria-hidden="true"></i>
+        <div>
+            <strong>Results to capture.</strong> These events have been run but are not completed yet:
+            @foreach (var ev in Model.AwaitingResults)
+            {
+                <a class="fw-semibold ms-1" asp-controller="Results" asp-action="Index" asp-route-eventId="@ev.EventId">@ev.EventName</a>
+            }
+        </div>
+    </div>
+}
+
+<div class="rd-card">
+    <div class="rd-card-header">
+        <h2><i class="bi bi-list-ul"></i> All your events</h2>
+        <a class="btn btn-sm btn-light-subtle" asp-controller="Events" asp-action="Index">Manage events</a>
+    </div>
+    @if (Model.Events.Count == 0)
+    {
+        <div class="rd-empty">
+            <i class="bi bi-calendar-plus"></i>
+            <h3>No events yet</h3>
+            <p>Your events and their entries will appear here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table rd-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="text-end">Categories</th>
+                        <th scope="col" class="text-end">Entries</th>
+                        <th scope="col">Confirmed / pending</th>
+                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ev in Model.Events)
+                    {
+                        <tr>
+                            <td>
+                                <a class="rd-cell-title" asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a>
+                                <div class="small text-secondary">@ev.City, @ev.Province</div>
+                            </td>
+                            <td class="text-nowrap">
+                                @Display.Date(ev.EventDate)
+                                <div class="small text-secondary">@Display.Relative(ev.EventDate, Model.Today)</div>
+                            </td>
+                            <td><status-badge value="@ev.EventStatus" /></td>
+                            <td class="text-end">@ev.CategoryCount</td>
+                            <td class="text-end fw-bold">@ev.EnteredCount</td>
+                            <td>
+                                <div class="rd-split-bar" title="@ev.ConfirmedCount confirmed, @ev.PendingCount pending">
+                                    <span class="rd-split-confirmed" style="width:@Display.Percent(ev.ConfirmedCount, Math.Max(ev.EnteredCount, 1))"></span>
+                                    <span class="rd-split-pending" style="width:@Display.Percent(ev.PendingCount, Math.Max(ev.EnteredCount, 1))"></span>
+                                </div>
+                                <div class="small text-secondary mt-1">@ev.ConfirmedCount confirmed · @ev.PendingCount pending</div>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-light-subtle" asp-controller="Enrolments" asp-action="Index" asp-route-eventId="@ev.EventId">
+                                    <i class="bi bi-people"></i> Entries
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

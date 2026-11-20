@@ -1,0 +1,91 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model EventBrowseViewModel
+@{
+    ViewData["Title"] = "Find events";
+    var filter = Model.Filter;
+}
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Upcoming events</span>
+        <h1>Find your next race</h1>
+        <p>Hi @Model.FirstName. Every upcoming run, walk and ride on RaceDay, soonest first. Filter by province, event type, dates or a search term.</p>
+    </div>
+    <a class="btn btn-light-subtle" asp-controller="Enrolments" asp-action="Index"><i class="bi bi-ticket-perforated me-1"></i> My events</a>
+</div>
+
+<form method="get" asp-action="Index" class="rd-filters" role="search" aria-label="Filter events">
+    <div class="row g-3 align-items-end">
+        <div class="col-lg-4">
+            <label asp-for="Filter.Search" class="form-label">Search</label>
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input name="Search" id="Filter_Search" value="@filter.Search" class="form-control" placeholder="Event, town or venue" maxlength="100" />
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <label for="Province" class="form-label">Province</label>
+            <select id="Province" name="Province" class="form-select">
+                <option value="">All provinces</option>
+                @foreach (var province in Provinces.All)
+                {
+                    <option value="@province" selected="@(province == filter.Province)">@province</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <label for="Discipline" class="form-label">Event type</label>
+            <select id="Discipline" name="Discipline" class="form-select">
+                <option value="">Run, walk or ride</option>
+                @foreach (var discipline in Disciplines.All)
+                {
+                    <option value="@discipline" selected="@(discipline == filter.Discipline)">@discipline</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-lg-2">
+            <label for="FromDate" class="form-label">From</label>
+            <input id="FromDate" name="FromDate" type="date" value="@filter.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-6 col-lg-2">
+            <label for="ToDate" class="form-label">To</label>
+            <input id="ToDate" name="ToDate" type="date" value="@filter.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
+            @if (filter.IsFiltered)
+            {
+                <a class="btn btn-light-subtle" asp-action="Index"><i class="bi bi-x-lg me-1"></i> Clear filters</a>
+            }
+            <button type="submit" class="btn btn-navy"><i class="bi bi-funnel me-1"></i> Show events</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-warning rd-flash" role="alert">
+        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+        <div>@Model.Error</div>
+    </div>
+}
+else if (Model.Events.Items.Count == 0)
+{
+    <div class="rd-card rd-empty">
+        <i class="bi bi-calendar-x"></i>
+        <h3>No events match</h3>
+        <p>@(filter.IsFiltered ? "Try a wider date range, another province or a different event type." : "There are no upcoming events yet. Check back soon.")</p>
+    </div>
+}
+else
+{
+    <p class="small text-secondary mb-3">@Model.Events.TotalCount upcoming @(Model.Events.TotalCount == 1 ? "event" : "events")</p>
+    <div class="row g-4">
+        @foreach (var ev in Model.Events.Items)
+        {
+            <div class="col-md-6 col-xl-4">
+                <partial name="_EventCard" model="ev" />
+            </div>
+        }
+    </div>
+    <partial name="_Pager" model='new PagerModel(Model.Events.Page, Model.Events.TotalPages, Model.Events.TotalCount, "events")' />
+}

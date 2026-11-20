@@ -1,0 +1,136 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model ResultsOverviewViewModel
+@{
+    var ev = Model.Event;
+    ViewData["Title"] = $"Results · {ev.EventName}";
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-controller="Events" asp-action="Index">My events</a> <span>/</span>
+    <a asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a> <span>/</span> <span>Results</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Results entry</span>
+        <h1>Results</h1>
+        <p>Capture finish times for each category of <strong>@ev.EventName</strong>, then publish them by completing the event.</p>
+    </div>
+    <status-badge value="@ev.EventStatus" />
+</div>
+
+@if (ev.EventStatus == EventStatuses.Draft)
+{
+    <div class="rd-card rd-empty">
+        <i class="bi bi-pencil-square"></i>
+        <h3>This event is still a draft</h3>
+        <p>Publish the event and run it before capturing results.</p>
+        <a class="btn btn-primary" asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">Go to the event</a>
+    </div>
+}
+else
+{
+    @if (!Model.HasBeenRun)
+    {
+        <div class="alert alert-info rd-flash mb-4" role="status">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <div>Race day is <strong>@Display.LongDate(ev.EventDate)</strong> (@Display.Relative(ev.EventDate, Model.Today).ToLowerInvariant()). Results can be captured once the event has been run.</div>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="rd-stat"><div class="rd-stat-icon rd-stat-icon--mint"><i class="bi bi-person-check-fill"></i></div>
+                <div><div class="rd-stat-value">@Model.TotalConfirmed</div><div class="rd-stat-label">Confirmed entrants</div></div></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="rd-stat"><div class="rd-stat-icon"><i class="bi bi-stopwatch-fill"></i></div>
+                <div><div class="rd-stat-value">@Model.TotalCaptured</div><div class="rd-stat-label">Results captured</div></div></div>
+        </div>
+        <div class="col-sm-4">
+            <div class="rd-stat"><div class="rd-stat-icon rd-stat-icon--sun"><i class="bi bi-hourglass-split"></i></div>
+                <div><div class="rd-stat-value">@Math.Max(0, Model.TotalConfirmed - Model.TotalCaptured)</div><div class="rd-stat-label">Still to capture</div></div></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var summary in Model.Categories)
+        {
+            var category = summary.Category;
+            var finishers = summary.Results.Count(r => r.ResultStatus == ResultStatuses.Finished);
+            <div class="col-lg-6">
+                <div class="rd-card h-100 d-flex flex-column">
+                    <div class="rd-card-header">
+                        <h2><i class="bi @Display.DisciplineIcon(category.Discipline)"></i> @category.CategoryName</h2>
+                        <span class="rd-chip">@Display.Distance(category.DistanceKm)</span>
+                    </div>
+                    <div class="p-4 flex-grow-1">
+                        <div class="d-flex justify-content-between small text-secondary mb-1">
+                            <span>@summary.Results.Count of @summary.ConfirmedEntries confirmed entrants captured</span>
+                            <span>@finishers finished</span>
+                        </div>
+                        <div class="rd-places mb-3"><span style="width:@Display.Percent(summary.Results.Count, Math.Max(summary.ConfirmedEntries, 1))"></span></div>
+
+                        @if (summary.Results.Count == 0)
+                        {
+                            <p class="text-secondary mb-0">No results captured yet.</p>
+                        }
+                        else
+                        {
+                            <ol class="list-unstyled d-grid gap-2 mb-0">
+                                @foreach (var row in summary.Results.Take(3))
+                                {
+                                    <li class="d-flex align-items-center gap-3">
+                                        <partial name="_Position" model="(row.OverallPosition, (int?)null)" />
+                                        <span class="fw-semibold flex-grow-1">@row.ParticipantName</span>
+                                        @if (row.ResultStatus == ResultStatuses.Finished)
+                                        {
+                                            <span class="rd-time">@Display.Duration(row.ChipTimeSeconds)</span>
+                                        }
+                                        else
+                                        {
+                                            <status-badge value="@row.ResultStatus" short="true" />
+                                        }
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </div>
+                    <div class="p-3 border-top">
+                        <a class="btn btn-primary w-100" asp-action="Capture" asp-route-categoryId="@category.CategoryId">
+                            <i class="bi bi-stopwatch me-1"></i> @(Model.HasBeenRun ? "Capture and review results" : "View entrants")
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="rd-card mt-4 p-4 d-flex flex-wrap gap-3 align-items-center justify-content-between">
+        @if (Model.CanComplete)
+        {
+            <div>
+                <h2 class="h3 mb-1">Publish the results</h2>
+                <p class="text-secondary mb-0">Completing the event publishes its results. Participants see their time and position (e.g. 47th of 312 finishers) on their My Results page.</p>
+            </div>
+            <form asp-action="Publish" asp-route-eventId="@ev.EventId" method="post"
+                  data-confirm="Complete this event and publish its results? A completed event can no longer be edited.">
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-flag-fill me-1"></i> Publish results</button>
+            </form>
+        }
+        else if (ev.EventStatus == EventStatuses.Completed)
+        {
+            <div>
+                <h2 class="h3 mb-1"><i class="bi bi-flag-fill text-orange me-1"></i> Results are published</h2>
+                <p class="text-secondary mb-0">This event is complete. You can still correct individual results.</p>
+            </div>
+        }
+        else
+        {
+            <div>
+                <h2 class="h3 mb-1">Publishing</h2>
+                <p class="text-secondary mb-0">Once the event has been run and its results captured, publish them here.</p>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,32 @@
+@model EventSummary
+@{
+    var link = ViewData["CardLink"] as string ?? Url.Action("Details", "Events", new { area = "Participant", id = Model.EventId });
+    var today = Clock.Today();
+    var entryState = Model.EventStatus != EventStatuses.Published || today > Model.RegistrationCloses ? "Closed"
+        : today < Model.RegistrationOpens ? "Soon" : "Open";
+}
+<article class="rd-event-card">
+    <partial name="_EventBanner" model="Model" view-data='new ViewDataDictionary(ViewData) { ["ShowStatus"] = Model.EventStatus != EventStatuses.Published }' />
+    <div class="rd-event-card-body">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var discipline in Model.Disciplines)
+            {
+                <span class="rd-chip"><i class="bi @Display.DisciplineIcon(discipline)"></i>@discipline</span>
+            }
+            @if (Model.EventStatus == EventStatuses.Published)
+            {
+                <status-badge value="@entryState" />
+            }
+        </div>
+        <h3><a href="@link" class="stretched-link text-reset text-decoration-none">@Model.EventName</a></h3>
+        <div class="rd-event-meta">
+            <span><i class="bi bi-calendar3"></i>@Display.LongDate(Model.EventDate) · @Display.Time(Model.StartTime)</span>
+            <span><i class="bi bi-geo-alt-fill"></i>@Model.VenueName, @Model.City</span>
+            <span><i class="bi bi-signpost-split-fill"></i>@Display.DistanceRange(Model.ShortestDistanceKm, Model.LongestDistanceKm)</span>
+        </div>
+        <div class="mt-auto pt-2 d-flex justify-content-between align-items-center small text-secondary">
+            <span><i class="bi bi-people-fill me-1"></i>@Model.EnteredCount entered</span>
+            <span class="fw-semibold text-orange">View event <i class="bi bi-arrow-right"></i></span>
+        </div>
+    </div>
+</article>

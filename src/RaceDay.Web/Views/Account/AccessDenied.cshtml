@@ -1,0 +1,24 @@
+@model SessionUser?
+@{
+    ViewData["Title"] = "Not your lane";
+    var (action, controller, area) = Model is null ? ("Index", "Home", "") : RoleHome.For(Model.Role);
+}
+
+<div class="rd-card rd-empty mx-auto" style="max-width: 640px;">
+    <i class="bi bi-sign-stop-fill text-orange"></i>
+    <span class="rd-eyebrow">403 · Access denied</span>
+    <h1 class="h2 mt-2">This page is not part of your role</h1>
+    <p>
+        @if (Model is null)
+        {
+            <text>Sign in with an account that is allowed to see it.</text>
+        }
+        else
+        {
+            <text>You are signed in as <strong>@Model.Role.ToLowerInvariant()</strong> @Model.FullName. Organiser and Participant pages are kept separate.</text>
+        }
+    </p>
+    <a class="btn btn-primary" asp-area="@area" asp-controller="@controller" asp-action="@action">
+        <i class="bi bi-house-door me-1"></i> Back to my home page
+    </a>
+</div>

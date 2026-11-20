@@ -1,0 +1,216 @@
+name: RaceDay CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-structure:
+    name: Validate repository structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Required files are present
+        run: |
+          missing=0
+          for path in README.md RaceDay.sln docker-compose.yml .dockerignore .env.example \
+                      src/RaceDay.Api/RaceDay.Api.csproj src/RaceDay.Api/Dockerfile \
+                      src/RaceDay.Web/RaceDay.Web.csproj src/RaceDay.Web/Dockerfile \
+                      tests/RaceDay.Api.Tests/RaceDay.Api.Tests.csproj tests/RaceDay.Web.Tests/RaceDay.Web.Tests.csproj \
+                      docs/RaceDay_ERD.png docs/API_Endpoint_Plan.pdf docs/RaceDay_Schema.sql; do
+            if [ ! -e "$path" ]; then echo "::error::$path is missing."; missing=1; else echo "found $path"; fi
+          done
+          exit $missing
+
+      - name: The solution builds both applications and both test projects
+        run: |
+          for project in RaceDay.Api RaceDay.Web RaceDay.Api.Tests RaceDay.Web.Tests; do
+            grep -q "$project.csproj" RaceDay.sln || { echo "::error::RaceDay.sln does not include $project."; exit 1; }
+          done
+          echo "All four projects are in the solution."
+
+      - name: The MVC app has no direct database or storage access
+        run: |
+          if grep -Eiq 'EntityFrameworkCore|SqlClient|Azure\.Storage' src/RaceDay.Web/RaceDay.Web.csproj; then
+            echo "::error::RaceDay.Web must not reference EF Core, SQL Server or Azure Storage packages."; exit 1
+          fi
+          if grep -REn --include=*.cs 'DbContext|BlobServiceClient|BlobContainerClient|SqlConnection' src/RaceDay.Web; then
+            echo "::error::RaceDay.Web must call the API instead of using a database or Blob Storage directly."; exit 1
+          fi
+          echo "RaceDay.Web talks to the API only."
+
+      - name: Dockerfiles follow the multi-stage, non-root pattern
+        run: |
+          for file in src/RaceDay.Web/Dockerfile src/RaceDay.Api/Dockerfile; do
+            grep -q 'FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build' "$file" || { echo "::error::$file has no SDK build stage."; exit 1; }
+            grep -q 'FROM mcr.microsoft.com/dotnet/aspnet:8.0' "$file" || { echo "::error::$file has no runtime stage."; exit 1; }
+            grep -q '^USER ' "$file" || { echo "::error::$file does not drop root."; exit 1; }
+            echo "$file OK"
+          done
+
+      - name: README documents Docker and both roles
+        run: |
+          for text in "docker compose up --build" "docker run" "Organiser" "Participant" "Blob Storage" "YouTube"; do
+            grep -qi -- "$text" README.md || { echo "::error::README.md does not mention '$text'."; exit 1; }
+          done
+          echo "README.md covers Docker, roles, Blob Storage and the video."
+
+  build-and-test:
+    name: Build and test the API and the MVC app
+    runs-on: ubuntu-latest
+    needs: validate-structure
+    env:
+      RACEDAY_REQUIRE_AZURITE: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Start the Azurite storage emulator
+        run: |
+          docker run -d --name azurite -p 10000:10000 mcr.microsoft.com/azure-storage/azurite:latest \
+            azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose --skipApiVersionCheck
+          for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/10000) 2>/dev/null && break; sleep 1; done
+          echo "Azurite is listening on 10000."
+
+      - name: Restore
+        run: dotnet restore RaceDay.sln
+
+      - name: Build the API and the MVC app
+        run: dotnet build RaceDay.sln --configuration Release --no-restore
+
+      - name: Check the migrations match the model
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/RaceDay.Api --configuration Release --no-build
+
+      - name: Run tests
+        run: >
+          dotnet test RaceDay.sln --configuration Release --no-build
+          --logger "trx"
+          --logger "console;verbosity=minimal"
+          --results-directory TestResults
+
+      - name: Summarise test results
+        if: always()
+        run: |
+          {
+            echo "### RaceDay tests"
+            echo ""
+            echo "| Project | Total | Passed | Failed | Skipped |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for trx in $(find TestResults -name '*.trx'); do
+            counters=$(grep -o '<Counters [^>]*>' "$trx")
+            value() { echo "$counters" | grep -o " $1=\"[0-9]*\"" | grep -o '[0-9]*'; }
+            project=$(grep -o 'storage="[^"]*\.dll"' "$trx" | head -n 1 | sed 's/.*[\\/]//;s/\.dll"//')
+            total=$(value total); executed=$(value executed)
+            echo "| ${project:-tests} | $total | $(value passed) | $(value failed) | $((total - executed)) |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+
+  docker:
+    name: Build the images and smoke-test docker compose
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build the images
+        run: docker compose build
+
+      - name: Start the stack
+        run: docker compose up -d
+
+      - name: Wait for the API and its database
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:5088/api/health | grep -q '"status":"Healthy"'; then echo "API healthy."; exit 0; fi
+            sleep 5
+          done
+          echo "::error::The API did not become healthy."; exit 1
+
+      - name: Wait for the web app
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health > /dev/null; then echo "Web app up."; exit 0; fi
+            sleep 2
+          done
+          echo "::error::The web app did not start."; exit 1
+
+      - name: Smoke-test the web app through the containers
+        run: |
+          set -eu
+          B=http://localhost:8080
+          token() { grep -o 'name="__RequestVerificationToken" type="hidden" value="[^"]*"' | head -n 1 | sed 's/.*value="//;s/"$//'; }
+          login() {
+            t=$(curl -fsS -c "$1" -b "$1" "$B/Account/Login" | token)
+            curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -c "$1" -b "$1" -X POST "$B/Account/Login" \
+              --data-urlencode "Email=$2" --data-urlencode "Password=RaceDay@2026" --data-urlencode "__RequestVerificationToken=$t"
+          }
+
+          landing=$(curl -fsS "$B/")
+          grep -q "Every finish line" <<< "$landing" || { echo "::error::The landing page did not render."; exit 1; }
+          echo "Landing page renders."
+
+          participant=$(mktemp)
+          [ "$(login "$participant" ayesha.patel@gmail.com)" = "302 $B/Participant/Events" ] || { echo "::error::Participant login failed."; exit 1; }
+          home=$(curl -fsS -c "$participant" -b "$participant" "$B/Participant/Events")
+          results=$(curl -fsS -c "$participant" -b "$participant" "$B/Participant/Results")
+          grep -q "Find your next race" <<< "$home" || { echo "::error::The participant home page did not render."; exit 1; }
+          grep -q "out of 2 finishers" <<< "$results" || { echo "::error::My Results did not show the seeded result."; exit 1; }
+          echo "Participant can sign in, browse events and see results."
+
+          organiser=$(mktemp)
+          [ "$(login "$organiser" thandeka.mokoena@raceday.co.za)" = "302 $B/Organiser/Dashboard" ] || { echo "::error::Organiser login failed."; exit 1; }
+          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" | base64 -d > banner.png
+          t=$(curl -fsS -c "$organiser" -b "$organiser" "$B/Organiser/Events/Create" | token)
+          location=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$organiser" -b "$organiser" -X POST "$B/Organiser/Events/Create" \
+            -F "__RequestVerificationToken=$t" -F "EventName=CI Smoke Test 10km $GITHUB_RUN_ID" -F "Description=Created by CI." \
+            -F "EventDate=$(date -d '+60 days' +%F)" -F "StartTime=06:30" -F "RegistrationOpens=$(date +%F)" -F "RegistrationCloses=$(date -d '+50 days' +%F)" \
+            -F "Province=Gauteng" -F "City=Johannesburg" -F "VenueName=Zoo Lake" -F "Latitude=-26.1576" -F "Longitude=28.0300" \
+            -F "FirstCategory.CategoryName=10km Run" -F "FirstCategory.Discipline=Run" -F "FirstCategory.DistanceKm=10" \
+            -F "FirstCategory.EntryFee=150" -F "FirstCategory.MaxParticipants=100" -F "FirstCategory.StartTime=06:30" -F "FirstCategory.MinimumAge=12" \
+            -F "Banner=@banner.png;type=image/png")
+          echo "Created event: $location"
+          details=$(curl -fsS -c "$organiser" -b "$organiser" "$location")
+          banner=$(grep -o 'src="http://localhost:10000/devstoreaccount1/event-banners/[^"]*"' <<< "$details" | sed -n '1{s/src="//;s/"$//;s/&amp;/\&/g;p}')
+          [ -n "$banner" ] || { echo "::error::The event page shows no banner from Blob Storage."; exit 1; }
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "$banner")" = "200" ] || { echo "::error::The banner could not be downloaded from Azurite."; exit 1; }
+          echo "Banner uploaded through the web app and API, stored in Blob Storage and served with a read-only link."
+
+          {
+            echo "### Docker smoke test :whale:"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| API container healthy, database migrated and seeded | passed |"
+            echo "| Web container serves the landing page | passed |"
+            echo "| Participant signs in, browses events and sees results | passed |"
+            echo "| Organiser creates an event with a banner stored in Blob Storage | passed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show container logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v

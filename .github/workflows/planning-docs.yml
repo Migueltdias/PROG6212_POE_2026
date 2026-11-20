@@ -1,0 +1,184 @@
+name: Part 1 - Planning Documents CI
+
+# Part 1 contains no application code, so this pipeline validates the planning
+# deliverables instead: that /docs exists, that it holds the ERD, the endpoint
+# plan and the SQL script, and that each of those files is actually complete.
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  validate-structure:
+    name: Validate repository structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: /docs folder exists
+        run: |
+          if [ ! -d docs ]; then
+            echo "::error::The /docs folder is missing."
+            exit 1
+          fi
+          echo "Found /docs containing:"
+          ls -la docs
+
+      - name: ERD image is present
+        run: |
+          erd=$(find docs -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.pdf' \) | head -n 1)
+          if [ -z "$erd" ]; then
+            echo "::error::No ERD image (.png or .pdf) found in /docs."
+            exit 1
+          fi
+          size=$(stat -c%s "$erd")
+          if [ "$size" -lt 10000 ]; then
+            echo "::error::$erd is only ${size} bytes - that is too small to be a real diagram."
+            exit 1
+          fi
+          echo "ERD: $erd (${size} bytes)"
+
+      - name: Install PDF tooling
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
+      - name: API endpoint plan is present and complete
+        run: |
+          plan=$(find docs -maxdepth 1 -type f -iname '*endpoint*.pdf' | head -n 1)
+          if [ -z "$plan" ]; then
+            echo "::error::No API endpoint plan PDF found in /docs."
+            exit 1
+          fi
+          echo "Endpoint plan: $plan ($(stat -c%s "$plan") bytes)"
+
+          # Read the text back out of the PDF and validate the deliverable itself,
+          # not the Markdown it was generated from. Whitespace is collapsed first
+          # because a header cell such as "HTTP method" wraps across two lines.
+          pdftotext -layout "$plan" - | tr -s '[:space:]' ' ' > /tmp/plan.txt
+          chars=$(wc -c < /tmp/plan.txt)
+          if [ "$chars" -lt 5000 ]; then
+            echo "::error::Only ${chars} characters of text in the plan - it looks empty or is a scan."
+            exit 1
+          fi
+          echo "Extracted ${chars} characters of text."
+
+          for column in "HTTP method" "Route" "Description" "Role required" "Request body" "Expected response"; do
+            if ! grep -qi -- "$column" /tmp/plan.txt; then
+              echo "::error::Required column '$column' is missing from the endpoint plan."
+              exit 1
+            fi
+          done
+          echo "All six required columns present."
+
+          for group in Authentication "User Profile" Events Categories Enrolments Results; do
+            if ! grep -qi -- "$group" /tmp/plan.txt; then
+              echo "::error::Required endpoint group '$group' is missing from the plan."
+              exit 1
+            fi
+          done
+          echo "All required endpoint groups present."
+
+          endpoints=$(grep -oE '(GET|POST|PUT|PATCH|DELETE) /api/' /tmp/plan.txt | wc -l)
+          echo "Endpoints found in the plan: $endpoints"
+          if [ "$endpoints" -lt 20 ]; then
+            echo "::error::Only $endpoints endpoints planned; the system needs materially more."
+            exit 1
+          fi
+
+          # Authentication must cover both register and login specifically.
+          for route in "/api/auth/register" "/api/auth/login"; do
+            if ! grep -q -- "$route" /tmp/plan.txt; then
+              echo "::error::Required endpoint $route is missing from the plan."
+              exit 1
+            fi
+          done
+          echo "Register and login endpoints present."
+
+      - name: SQL script is present and complete
+        run: |
+          script=$(find docs -maxdepth 1 -type f -iname '*.sql' | head -n 1)
+          if [ -z "$script" ]; then
+            echo "::error::No .sql script found in /docs."
+            exit 1
+          fi
+          echo "SQL script: $script"
+
+          tables=$(grep -ciE '^ *CREATE TABLE' "$script" || true)
+          echo "CREATE TABLE statements: $tables"
+          if [ "$tables" -lt 6 ]; then
+            echo "::error::The ERD requires at least 6 entities but the script creates only $tables."
+            exit 1
+          fi
+
+          for keyword in "PRIMARY KEY" "FOREIGN KEY" "NOT NULL" "UNIQUE" "DEFAULT" "INSERT INTO"; do
+            if ! grep -qi "$keyword" "$script"; then
+              echo "::error::The SQL script contains no '$keyword'."
+              exit 1
+            fi
+          done
+          echo "Keys, constraints and seed inserts all present."
+
+          # Every CREATE TABLE must be matched by a DROP so the script is re-runnable.
+          drops=$(grep -ciE 'DROP TABLE IF EXISTS' "$script" || true)
+          if [ "$drops" -lt "$tables" ]; then
+            echo "::error::$tables tables created but only $drops dropped - the script is not re-runnable."
+            exit 1
+          fi
+          echo "Script is re-runnable ($drops drops for $tables tables)."
+
+      - name: SQL script matches the ERD
+        run: |
+          script=$(find docs -maxdepth 1 -type f -iname '*.sql' | head -n 1)
+          erd_source=docs/RaceDay_ERD.drawio
+          if [ ! -f "$erd_source" ]; then
+            echo "::error::docs/RaceDay_ERD.drawio is missing, so the ERD has no editable source."
+            exit 1
+          fi
+          # Entity names are the values of the swimlane cells in the draw.io XML.
+          entities=$(grep -oE 'value="[A-Za-z]+" style="swimlane' "$erd_source" | cut -d'"' -f2)
+          count=$(echo "$entities" | grep -c .)
+          echo "Entities declared in the ERD: $count"
+          if [ "$count" -lt 6 ]; then
+            echo "::error::The ERD declares only $count entities; the brief requires at least 6."
+            exit 1
+          fi
+          # Each entity in the ERD must have a matching CREATE TABLE.
+          missing=0
+          for entity in $entities; do
+            if ! grep -qiE "^ *CREATE TABLE dbo\.${entity}\b" "$script"; then
+              echo "::error::Entity '$entity' appears in the ERD but has no CREATE TABLE in the script."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] && echo "Every ERD entity has a matching table."
+          exit $missing
+
+      - name: README is present and complete
+        run: |
+          if [ ! -f README.md ]; then
+            echo "::error::README.md is missing from the repository root."
+            exit 1
+          fi
+          for section in "Organiser" "Participant" "docs" "setup"; do
+            if ! grep -qi "$section" README.md; then
+              echo "::error::README.md does not mention '$section'."
+              exit 1
+            fi
+          done
+          echo "README.md present and covers the required sections."
+
+      - name: Summary
+        run: |
+          echo "### Part 1 structure validated :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Deliverable | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| /docs folder | present |" >> $GITHUB_STEP_SUMMARY
+          echo "| ERD image | present |" >> $GITHUB_STEP_SUMMARY
+          echo "| API endpoint plan | present, all six columns |" >> $GITHUB_STEP_SUMMARY
+          echo "| SQL script | present, $(grep -ciE '^ *CREATE TABLE' docs/*.sql) tables |" >> $GITHUB_STEP_SUMMARY
+          echo "| README | present |" >> $GITHUB_STEP_SUMMARY

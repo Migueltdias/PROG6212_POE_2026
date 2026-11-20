@@ -1,0 +1,157 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model EventDetailsViewModel
+@{
+    var ev = Model.Event;
+    ViewData["Title"] = ev.EventName;
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-action="Index">Find events</a> <span>/</span> <span>@ev.EventName</span>
+</nav>
+
+<div class="rd-detail-hero">
+    <partial name="_EventBanner" model="ev" view-data='new ViewDataDictionary(ViewData) { ["ShowDate"] = false }' />
+    <div class="rd-detail-hero-text">
+        <div class="d-flex flex-wrap gap-2">
+            @if (ev.EventStatus == EventStatuses.Published)
+            {
+                <status-badge value="@Model.EntryState" />
+            }
+            else
+            {
+                <status-badge value="@ev.EventStatus" />
+            }
+            @foreach (var discipline in ev.Disciplines)
+            {
+                <span class="rd-chip"><i class="bi @Display.DisciplineIcon(discipline)"></i>@discipline</span>
+            }
+        </div>
+        <h1>@ev.EventName</h1>
+        <div class="opacity-75"><i class="bi bi-calendar3 me-1"></i>@Display.LongDate(ev.EventDate) · <i class="bi bi-geo-alt-fill ms-1 me-1"></i>@ev.VenueName, @ev.City</div>
+    </div>
+</div>
+
+@if (Model.MyEntries.Any(e => e.IsActive))
+{
+    <div class="alert alert-success rd-flash mb-4" role="status">
+        <i class="bi bi-ticket-perforated-fill" aria-hidden="true"></i>
+        <div>
+            You have entered:
+            @foreach (var entry in Model.MyEntries.Where(e => e.IsActive))
+            {
+                <span class="ms-1"><strong>@entry.CategoryName</strong> (race number <strong>@entry.RaceNumber</strong>, @entry.EnrolmentStatus.ToLowerInvariant())</span>
+            }
+            · <a asp-controller="Enrolments" asp-action="Index">View my events</a>
+        </div>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <section class="rd-card mb-4" aria-labelledby="categories-heading">
+            <div class="rd-card-header">
+                <h2 id="categories-heading"><i class="bi bi-signpost-split-fill"></i> Choose your category</h2>
+                <span class="small text-secondary">@ev.Categories.Count on offer</span>
+            </div>
+            <div class="p-3 d-grid gap-3">
+                @if (ev.Categories.Count == 0)
+                {
+                    <p class="text-secondary m-2">The organiser has not added any categories yet.</p>
+                }
+                @foreach (var category in ev.Categories)
+                {
+                    var mine = Model.ActiveEntryFor(category.CategoryId);
+                    <div class="rd-category">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rd-category-distance">@Display.DistanceNumber(category.DistanceKm)<small>km</small></div>
+                            <div>
+                                <div class="rd-category-name">@category.CategoryName</div>
+                                <div class="rd-category-facts">
+                                    <span><i class="bi @Display.DisciplineIcon(category.Discipline) me-1"></i>@category.Discipline</span>
+                                    <span><i class="bi bi-clock me-1"></i>Starts @Display.Time(category.StartTime)</span>
+                                    <span><i class="bi bi-person-check me-1"></i>Ages @(category.MinimumAge)+</span>
+                                </div>
+                                <div class="small text-secondary mt-1">@category.PlacesLeft of @category.MaxParticipants places left</div>
+                                <div class="rd-places" style="max-width: 220px"><span style="width:@Display.Percent(category.EnteredCount, category.MaxParticipants)"></span></div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 ms-auto">
+                            <span class="rd-category-price">@Display.Money(category.EntryFee)</span>
+                            @if (mine is not null)
+                            {
+                                <status-badge value="@mine.EnrolmentStatus" />
+                            }
+                            else if (Model.EntriesOpen && category.PlacesLeft > 0)
+                            {
+                                <a class="btn btn-primary" asp-controller="Enrolments" asp-action="Create" asp-route-eventId="@ev.EventId" asp-route-categoryId="@category.CategoryId">
+                                    Enter <i class="bi bi-arrow-right"></i>
+                                </a>
+                            }
+                            else if (Model.EntriesOpen)
+                            {
+                                <span class="rd-status rd-status--closed"><i class="bi bi-slash-circle"></i>Full</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="rd-card mb-4" aria-labelledby="about-heading">
+            <div class="rd-card-header"><h2 id="about-heading"><i class="bi bi-info-circle"></i> About this event</h2></div>
+            <div class="p-4">
+                <p class="mb-0" style="white-space: pre-line">@(string.IsNullOrWhiteSpace(ev.Description) ? "The organiser has not added a description yet." : ev.Description)</p>
+            </div>
+        </section>
+
+        <section class="rd-card" aria-labelledby="where-heading">
+            <div class="rd-card-header">
+                <h2 id="where-heading"><i class="bi bi-map"></i> Where</h2>
+                <a class="small" href="@Display.MapLinkUrl(ev.Latitude, ev.Longitude)" target="_blank" rel="noopener">Open the map <i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
+            <div class="p-3">
+                <iframe class="rd-map" title="Map of @ev.VenueName" loading="lazy" src="@Display.MapEmbedUrl(ev.Latitude, ev.Longitude)"></iframe>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="rd-card mb-4">
+            <div class="rd-card-header"><h2><i class="bi bi-calendar-check"></i> Key facts</h2></div>
+            <div class="px-4 py-2">
+                <div class="rd-fact"><i class="bi bi-calendar-event"></i><div><div class="rd-fact-label">Race day</div><div class="rd-fact-value">@Display.LongDate(ev.EventDate)</div><div class="small text-secondary">@Display.Relative(ev.EventDate, Model.Today)</div></div></div>
+                <div class="rd-fact"><i class="bi bi-clock"></i><div><div class="rd-fact-label">First start</div><div class="rd-fact-value">@Display.Time(ev.StartTime)</div></div></div>
+                <div class="rd-fact"><i class="bi bi-geo-alt"></i><div><div class="rd-fact-label">Venue</div><div class="rd-fact-value">@ev.VenueName</div><div class="small text-secondary">@ev.City, @ev.Province</div></div></div>
+                <div class="rd-fact"><i class="bi bi-door-open"></i><div><div class="rd-fact-label">Entries</div><div class="rd-fact-value">@Display.Date(ev.RegistrationOpens) – @Display.Date(ev.RegistrationCloses)</div><div class="mt-1"><status-badge value="@Model.EntryState" /></div></div></div>
+                <div class="rd-fact"><i class="bi bi-person-badge"></i><div><div class="rd-fact-label">Organiser</div><div class="rd-fact-value">@ev.OrganiserName</div></div></div>
+                <div class="rd-fact"><i class="bi bi-people"></i><div><div class="rd-fact-label">Field</div><div class="rd-fact-value">@ev.EnteredCount entered so far</div></div></div>
+            </div>
+        </div>
+
+        @if (Model.Weather is { } weather)
+        {
+            <div class="rd-card mb-4">
+                <div class="rd-card-header"><h2><i class="bi bi-cloud-sun"></i> Weather at the venue</h2></div>
+                <div class="p-4">
+                    <div class="rd-weather">
+                        <div class="rd-weather-temp">@weather.TemperatureC.ToString("0.#")°</div>
+                        <div>
+                            <div class="fw-semibold">@weather.Conditions</div>
+                            <div class="small text-secondary">
+                                @if (weather.FeelsLikeC is { } feels) { <span>Feels like @feels.ToString("0.#")°</span> }
+                                @if (weather.WindSpeedKph is { } wind) { <span> · Wind @wind.ToString("0") km/h</span> }
+                                @if (weather.ChanceOfRainPct is { } rain) { <span> · Rain @rain%</span> }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="small text-secondary mt-3">Reading from @Display.DateTime(weather.CapturedAt) UTC · @weather.Source</div>
+                </div>
+            </div>
+        }
+
+        @if (ev.EventStatus == EventStatuses.Completed)
+        {
+            <a class="btn btn-navy w-100 btn-lg" asp-action="Results" asp-route-id="@ev.EventId"><i class="bi bi-trophy me-1"></i> See the results</a>
+        }
+    </div>
+</div>

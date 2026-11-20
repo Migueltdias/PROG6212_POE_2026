@@ -1,0 +1,9 @@
+@model (string? PictureUrl, string Initials, bool Large)
+@if (!string.IsNullOrWhiteSpace(Model.PictureUrl))
+{
+    <img src="@Model.PictureUrl" alt="" class="rd-avatar @(Model.Large ? "rd-avatar-xl" : "")" />
+}
+else
+{
+    <span class="rd-avatar @(Model.Large ? "rd-avatar-xl" : "")" aria-hidden="true">@Model.Initials</span>
+}

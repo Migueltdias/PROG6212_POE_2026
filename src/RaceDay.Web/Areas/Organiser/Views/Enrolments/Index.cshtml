@@ -1,0 +1,112 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model EnrolmentListViewModel
+@{
+    var ev = Model.Event;
+    ViewData["Title"] = $"Enrolments · {ev.EventName}";
+    var tabs = new (string? Status, string Label)[] { (null, "All"), ("Confirmed", "Confirmed"), ("Pending", "Pending"), ("Cancelled", "Cancelled"), ("Withdrawn", "Withdrawn") };
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-controller="Events" asp-action="Index">My events</a> <span>/</span>
+    <a asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a> <span>/</span> <span>Enrolments</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Enrolments</span>
+        <h1>Who has entered</h1>
+        <p>Every participant entered in <strong>@ev.EventName</strong> (@Display.Date(ev.EventDate)), with the category they chose and the state of their entry.</p>
+    </div>
+    <a class="btn btn-light-subtle" asp-controller="Results" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-stopwatch me-1"></i> Results</a>
+</div>
+
+<form method="get" class="rd-filters">
+    <input type="hidden" name="eventId" value="@ev.EventId" />
+    <input type="hidden" name="status" value="@Model.Status" />
+    <div class="row g-3 align-items-end">
+        <div class="col-md-6 col-lg-4">
+            <label for="categoryId" class="form-label">Category</label>
+            <select id="categoryId" name="categoryId" class="form-select" onchange="this.form.submit()">
+                <option value="">All categories</option>
+                @foreach (var category in ev.Categories)
+                {
+                    <option value="@category.CategoryId" selected="@(category.CategoryId == Model.CategoryId)">
+                        @category.CategoryName (@Display.Distance(category.DistanceKm), @category.EnteredCount entered)
+                    </option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <noscript><button type="submit" class="btn btn-navy">Filter</button></noscript>
+        </div>
+    </div>
+</form>
+
+<ul class="nav rd-tabs" aria-label="Filter by entry status">
+    @foreach (var (status, label) in tabs)
+    {
+        var count = status is null ? Model.TotalCount : Model.Counts.GetValueOrDefault(status);
+        <li class="nav-item">
+            <a class="nav-link @(Model.Status == status ? "active" : "")" aria-current="@(Model.Status == status ? "page" : null)"
+               asp-action="Index" asp-route-eventId="@ev.EventId" asp-route-categoryId="@Model.CategoryId" asp-route-status="@status">
+                @label <span class="badge rounded-pill ms-1">@count</span>
+            </a>
+        </li>
+    }
+</ul>
+
+<div class="rd-card">
+    @if (Model.Entries.Items.Count == 0)
+    {
+        <div class="rd-empty">
+            <i class="bi bi-people"></i>
+            <h3>No entries to show</h3>
+            <p>@(Model.Status is null ? "Nobody has entered yet." : $"There are no {Model.Status.ToLowerInvariant()} entries for this filter.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table rd-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Race no.</th>
+                        <th scope="col">Participant</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Entered</th>
+                        <th scope="col" class="text-end">Paid</th>
+                        <th scope="col">T-shirt</th>
+                        <th scope="col">Emergency contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Model.Entries.Items)
+                    {
+                        <tr>
+                            <td><span class="rd-bib">@entry.RaceNumber</span></td>
+                            <td class="fw-semibold">@entry.ParticipantName</td>
+                            <td>
+                                <div>@entry.CategoryName</div>
+                                <div class="small text-secondary"><i class="bi @Display.DisciplineIcon(entry.Discipline) me-1"></i>@entry.Discipline · @Display.Distance(entry.DistanceKm)</div>
+                            </td>
+                            <td><status-badge value="@entry.EnrolmentStatus" /></td>
+                            <td class="text-nowrap small">@Display.DateTime(entry.EnrolmentDate)</td>
+                            <td class="text-end text-nowrap">
+                                @Display.Money(entry.AmountPaid)
+                                <div class="small text-secondary">of @Display.Money(entry.EntryFee)</div>
+                            </td>
+                            <td>@(entry.TShirtSize ?? "–")</td>
+                            <td class="small">
+                                @entry.EmergencyContactName
+                                <div class="text-secondary">@entry.EmergencyContactPhone</div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<partial name="_Pager" model='new PagerModel(Model.Entries.Page, Model.Entries.TotalPages, Model.Entries.TotalCount, "entries")' />

@@ -1,0 +1,34 @@
+@using Microsoft.AspNetCore.WebUtilities
+@model PagerModel
+@{
+    string UrlFor(int page)
+    {
+        var query = Context.Request.Query.ToDictionary(q => q.Key, q => (string?)q.Value.ToString());
+        query["page"] = page.ToString();
+        return QueryHelpers.AddQueryString(Context.Request.PathBase + Context.Request.Path, query);
+    }
+
+    var first = Math.Max(1, Model.Page - 2);
+    var last = Math.Min(Model.TotalPages, first + 4);
+    first = Math.Max(1, last - 4);
+}
+@if (Model.TotalPages > 1)
+{
+    <nav class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4" aria-label="Pages">
+        <span class="small text-secondary">Page @Model.Page of @Model.TotalPages · @Model.TotalCount @Model.ItemName</span>
+        <ul class="pagination mb-0">
+            <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                <a class="page-link" href="@UrlFor(Model.Page - 1)" aria-label="Previous page"><i class="bi bi-chevron-left"></i></a>
+            </li>
+            @for (var p = first; p <= last; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" href="@UrlFor(p)" aria-current="@(p == Model.Page ? "page" : null)">@p</a>
+                </li>
+            }
+            <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                <a class="page-link" href="@UrlFor(Model.Page + 1)" aria-label="Next page"><i class="bi bi-chevron-right"></i></a>
+            </li>
+        </ul>
+    </nav>
+}

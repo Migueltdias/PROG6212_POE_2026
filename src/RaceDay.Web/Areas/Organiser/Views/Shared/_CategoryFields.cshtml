@@ -1,0 +1,47 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model CategoryInput
+<div class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="CategoryName" class="form-label"></label>
+        <input asp-for="CategoryName" class="form-control" placeholder="e.g. 21.1km Half Marathon or Under 20 10km" />
+        <span asp-validation-for="CategoryName"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="Discipline" class="form-label"></label>
+        <select asp-for="Discipline" class="form-select">
+            @foreach (var discipline in Disciplines.All)
+            {
+                <option value="@discipline">@discipline</option>
+            }
+        </select>
+        <span asp-validation-for="Discipline"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="DistanceKm" class="form-label"></label>
+        <input asp-for="DistanceKm" type="number" step="0.01" min="0.01" class="form-control" placeholder="21.1" />
+        <span asp-validation-for="DistanceKm"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="EntryFee" class="form-label"></label>
+        <div class="input-group">
+            <span class="input-group-text">R</span>
+            <input asp-for="EntryFee" type="number" step="0.01" min="0" class="form-control" />
+        </div>
+        <span asp-validation-for="EntryFee"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="MaxParticipants" class="form-label"></label>
+        <input asp-for="MaxParticipants" type="number" min="1" class="form-control" />
+        <span asp-validation-for="MaxParticipants"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="StartTime" class="form-label"></label>
+        <input asp-for="StartTime" type="time" class="form-control" />
+        <span asp-validation-for="StartTime"></span>
+    </div>
+    <div class="col-md-3 col-6">
+        <label asp-for="MinimumAge" class="form-label"></label>
+        <input asp-for="MinimumAge" type="number" min="0" max="100" class="form-control" />
+        <span asp-validation-for="MinimumAge"></span>
+    </div>
+</div>

@@ -1,0 +1,115 @@
+@model ProfilePageViewModel
+@{
+    ViewData["Title"] = "My profile";
+    var profile = Model.Profile;
+}
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">My profile</span>
+        <h1>@profile.FullName</h1>
+        <p>Your personal details and profile picture. Your email address and role were set when you registered and cannot be changed.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <section class="rd-card text-center p-4 mb-4" aria-labelledby="picture-heading">
+            <h2 id="picture-heading" class="visually-hidden">Profile picture</h2>
+            <div class="mb-3">
+                <partial name="_Avatar" model="(profile.ProfilePictureUrl, Model.Initials, true)" />
+            </div>
+            <div class="fw-bold fs-5">@profile.FullName</div>
+            <div class="text-secondary small mb-2">@profile.Email</div>
+            <span class="rd-role-chip rd-role-chip--@profile.Role.ToLowerInvariant() me-0">@profile.Role</span>
+
+            <form asp-action="Picture" method="post" enctype="multipart/form-data" class="rd-upload mt-4 text-start">
+                <img id="picturePreview" class="rd-upload-preview d-none" alt="New picture preview" />
+                <label for="picture" class="form-label">@(profile.ProfilePictureUrl is null ? "Add a profile picture" : "Change your picture")</label>
+                <input id="picture" name="picture" type="file" class="form-control" required
+                       accept="image/jpeg,image/png,image/gif,image/webp" data-image-input="picturePreview" data-max-bytes="@ProfilePageViewModel.MaxPictureBytes" />
+                <div class="form-text">JPEG, PNG, GIF or WebP up to 5 MB. Sent to the RaceDay API and stored in Azure Blob Storage.</div>
+                <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-cloud-arrow-up me-1"></i> Upload picture</button>
+            </form>
+            @if (profile.ProfilePictureUrl is not null)
+            {
+                <form asp-action="RemovePicture" method="post" class="mt-2" data-confirm="Remove your profile picture?">
+                    <button type="submit" class="btn btn-link btn-sm text-danger">Remove picture</button>
+                </form>
+            }
+        </section>
+
+        <section class="rd-card p-4">
+            <div class="rd-fact"><i class="bi bi-envelope"></i><div><div class="rd-fact-label">Email</div><div class="rd-fact-value text-break">@profile.Email</div></div></div>
+            <div class="rd-fact"><i class="bi bi-person-badge"></i><div><div class="rd-fact-label">Role</div><div class="rd-fact-value">@profile.Role</div></div></div>
+            <div class="rd-fact"><i class="bi bi-calendar-check"></i><div><div class="rd-fact-label">Member since</div><div class="rd-fact-value">@Display.Date(DateOnly.FromDateTime(profile.CreatedAt))</div></div></div>
+        </section>
+    </div>
+
+    <div class="col-lg-8">
+        <form asp-action="Update" method="post" class="rd-form-section" novalidate>
+            <h2><i class="bi bi-person-lines-fill"></i> Personal information</h2>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger rd-flash" role="alert"></div>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <label asp-for="Details.FirstName" class="form-label"></label>
+                    <input asp-for="Details.FirstName" class="form-control" autocomplete="given-name" />
+                    <span asp-validation-for="Details.FirstName"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Details.LastName" class="form-label"></label>
+                    <input asp-for="Details.LastName" class="form-control" autocomplete="family-name" />
+                    <span asp-validation-for="Details.LastName"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Details.PhoneNumber" class="form-label"></label>
+                    <input asp-for="Details.PhoneNumber" class="form-control" autocomplete="tel" />
+                    <span asp-validation-for="Details.PhoneNumber"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Details.DateOfBirth" class="form-label"></label>
+                    <input asp-for="Details.DateOfBirth" type="date" class="form-control" autocomplete="bday" />
+                    <span asp-validation-for="Details.DateOfBirth"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Details.Gender" class="form-label"></label>
+                    <select asp-for="Details.Gender" class="form-select">
+                        @foreach (var (code, label) in Genders.All)
+                        {
+                            <option value="@code">@label</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Details.Gender"></span>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-4"><i class="bi bi-check2-circle me-1"></i> Save details</button>
+        </form>
+
+        <form asp-action="Password" method="post" class="rd-form-section" novalidate>
+            <h2><i class="bi bi-shield-lock"></i> Change password</h2>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label asp-for="Password.CurrentPassword" class="form-label"></label>
+                    <input asp-for="Password.CurrentPassword" class="form-control" autocomplete="current-password" />
+                    <span asp-validation-for="Password.CurrentPassword"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Password.NewPassword" class="form-label"></label>
+                    <input asp-for="Password.NewPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="Password.NewPassword"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Password.ConfirmNewPassword" class="form-label"></label>
+                    <input asp-for="Password.ConfirmNewPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="Password.ConfirmNewPassword"></span>
+                </div>
+                <div class="col-12 form-text">8 or more characters with an upper-case letter, a lower-case letter and a digit. Other devices are signed out.</div>
+            </div>
+            <button type="submit" class="btn btn-navy mt-4"><i class="bi bi-key me-1"></i> Change password</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

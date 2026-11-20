@@ -1,0 +1,101 @@
+@using RaceDay.Web.Areas.Participant.Models
+@model MyEventsViewModel
+@{
+    ViewData["Title"] = "My events";
+    var tabs = new (string Key, string Label, string Icon)[] { ("upcoming", "Upcoming", "bi-hourglass-top"), ("past", "Past", "bi-flag"), ("all", "All", "bi-collection") };
+}
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">My events</span>
+        <h1>My entries</h1>
+        <p>Every event you have entered, with your race number and where your entry stands.</p>
+    </div>
+    <a class="btn btn-primary" asp-controller="Events" asp-action="Index"><i class="bi bi-search me-1"></i> Find another event</a>
+</div>
+
+<div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-2">
+    <ul class="nav rd-tabs mb-0" aria-label="Which entries">
+        @foreach (var (key, label, icon) in tabs)
+        {
+            <li class="nav-item">
+                <a class="nav-link @(Model.Tab == key ? "active" : "")" aria-current="@(Model.Tab == key ? "page" : null)" asp-action="Index" asp-route-tab="@key">
+                    <i class="bi @icon me-1"></i>@label
+                </a>
+            </li>
+        }
+    </ul>
+    <div class="d-flex flex-wrap gap-2 small" aria-label="Status key">
+        <status-badge value="Confirmed" /><status-badge value="Pending" /><status-badge value="Cancelled" /><status-badge value="Withdrawn" />
+    </div>
+</div>
+
+@if (Model.Entries.Items.Count == 0)
+{
+    <div class="rd-card rd-empty mt-3">
+        <i class="bi bi-ticket-perforated"></i>
+        <h3>@(Model.Tab == "past" ? "No past events yet" : "You have not entered anything yet")</h3>
+        <p>Find an event, choose a category and you will see it here with your race number.</p>
+        <a class="btn btn-primary" asp-controller="Events" asp-action="Index">Find an event</a>
+    </div>
+}
+else
+{
+    <div class="d-grid gap-3 mt-3">
+        @foreach (var entry in Model.Entries.Items)
+        {
+            <article class="rd-card p-3 p-lg-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <div class="rd-date-badge position-static">
+                            <div class="rd-date-month">@Display.Month(entry.EventDate)</div>
+                            <div class="rd-date-day">@entry.EventDate.Day</div>
+                            <div class="rd-date-year">@entry.EventDate.Year</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h2 class="h3 mb-1">
+                            <a class="text-reset text-decoration-none" asp-controller="Events" asp-action="Details" asp-route-id="@entry.EventId">@entry.EventName</a>
+                        </h2>
+                        <div class="text-secondary small">
+                            <i class="bi @Display.DisciplineIcon(entry.Discipline) text-orange me-1"></i>@entry.CategoryName · @Display.Distance(entry.DistanceKm) · starts @Display.Time(entry.StartTime)
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            Entered @Display.DateTime(entry.EnrolmentDate) · @Display.Money(entry.AmountPaid) paid of @Display.Money(entry.EntryFee)
+                            @if (!string.IsNullOrWhiteSpace(entry.TShirtSize)) { <span> · T-shirt @entry.TShirtSize</span> }
+                        </div>
+                    </div>
+                    <div class="col-sm-auto text-sm-center">
+                        <div class="small-caps mb-1">Race no.</div>
+                        <span class="rd-bib">@entry.RaceNumber</span>
+                    </div>
+                    <div class="col-sm-auto">
+                        <status-badge value="@entry.EnrolmentStatus" />
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+                    @if (entry.EnrolmentStatus == EnrolmentStatuses.Pending && Model.CanChange(entry))
+                    {
+                        <a class="btn btn-sm btn-primary" asp-action="Pay" asp-route-id="@entry.EnrolmentId"><i class="bi bi-credit-card me-1"></i> Pay @Display.Money(entry.EntryFee)</a>
+                    }
+                    @if (Model.CanChange(entry))
+                    {
+                        <a class="btn btn-sm btn-light-subtle" asp-action="Edit" asp-route-id="@entry.EnrolmentId"><i class="bi bi-pencil me-1"></i> Update details</a>
+                        <form asp-action="Withdraw" asp-route-id="@entry.EnrolmentId" method="post"
+                              data-confirm="Withdraw from @entry.CategoryName at @entry.EventName?">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-left me-1"></i> Withdraw</button>
+                        </form>
+                    }
+                    @if (entry.HasResult)
+                    {
+                        <a class="btn btn-sm btn-navy" asp-controller="Results" asp-action="Index"><i class="bi bi-trophy me-1"></i> See my result</a>
+                    }
+                    <a class="btn btn-sm btn-light-subtle ms-auto" asp-controller="Events" asp-action="Details" asp-route-id="@entry.EventId">Event page <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </article>
+        }
+    </div>
+
+    <partial name="_Pager" model='new PagerModel(Model.Entries.Page, Model.Entries.TotalPages, Model.Entries.TotalCount, "entries")' />
+}

@@ -1,0 +1,140 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model CaptureViewModel
+@{
+    var ev = Model.Event;
+    var category = Model.Category;
+    ViewData["Title"] = $"Capture results · {category.CategoryName}";
+    var inputIndex = 0;
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-controller="Events" asp-action="Index">My events</a> <span>/</span>
+    <a asp-controller="Events" asp-action="Details" asp-route-id="@ev.EventId">@ev.EventName</a> <span>/</span>
+    <a asp-action="Index" asp-route-eventId="@ev.EventId">Results</a> <span>/</span> <span>@category.CategoryName</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Capture results</span>
+        <h1>@category.CategoryName</h1>
+        <p>
+            <i class="bi @Display.DisciplineIcon(category.Discipline) text-orange"></i> @category.Discipline · @Display.Distance(category.DistanceKm) ·
+            gun start @Display.Time(category.StartTime) on @Display.Date(ev.EventDate)
+        </p>
+    </div>
+    <a class="btn btn-light-subtle" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-arrow-left me-1"></i> All categories</a>
+</div>
+
+@if (!Model.HasBeenRun)
+{
+    <div class="alert alert-info rd-flash" role="status">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i>
+        <div>This category has not been run yet. Results can be captured from @Display.LongDate(ev.EventDate).</div>
+    </div>
+}
+
+<form asp-action="Capture" asp-route-categoryId="@category.CategoryId" method="post">
+    <div class="rd-card">
+        <div class="rd-card-header">
+            <h2><i class="bi bi-list-ol"></i> @Model.Rows.Count confirmed @(Model.Rows.Count == 1 ? "entrant" : "entrants")</h2>
+            @if (Model.CanCapture && Model.Outstanding > 0)
+            {
+                <span class="small text-secondary">@Model.Outstanding still to capture</span>
+            }
+        </div>
+
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="rd-empty">
+                <i class="bi bi-person-x"></i>
+                <h3>No confirmed entrants</h3>
+                <p>Only confirmed (paid) entries can be given a result.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table rd-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Pos.</th>
+                            <th scope="col">Race no.</th>
+                            <th scope="col">Participant</th>
+                            <th scope="col">Result</th>
+                            <th scope="col">Finish time (clock)</th>
+                            <th scope="col">Time</th>
+                            <th scope="col">Gender / age group</th>
+                            <th scope="col"><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var existing = row.Existing;
+                            <tr>
+                                <td><partial name="_Position" model="(existing?.OverallPosition, (int?)null)" /></td>
+                                <td><span class="rd-bib">@row.RaceNumber</span></td>
+                                <td class="fw-semibold">@row.ParticipantName</td>
+                                @if (existing is not null)
+                                {
+                                    <td><status-badge value="@existing.ResultStatus" /></td>
+                                    <td class="rd-time">@(existing.FinishTime is { } finish ? finish.ToString("HH:mm:ss") : "–")</td>
+                                    <td class="rd-time">@Display.Duration(existing.ChipTimeSeconds)</td>
+                                    <td class="small text-secondary">
+                                        @(existing.GenderPosition is { } g ? Display.Ordinal(g) : "–") ·
+                                        @(existing.AgeGroupPosition is { } a ? Display.Ordinal(a) : "–")
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <a class="btn btn-sm btn-light-subtle" asp-action="Edit" asp-route-id="@existing.ResultId" aria-label="Correct the result for @row.ParticipantName"><i class="bi bi-pencil"></i></a>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" form="delete-@existing.ResultId" aria-label="Remove the result for @row.ParticipantName"><i class="bi bi-trash3"></i></button>
+                                    </td>
+                                }
+                                else if (Model.CanCapture)
+                                {
+                                    var i = inputIndex++;
+                                    <td>
+                                        <input type="hidden" name="rows[@i].RaceNumber" value="@row.RaceNumber" />
+                                        <label class="visually-hidden" for="status-@i">Result for @row.ParticipantName</label>
+                                        <select id="status-@i" name="rows[@i].ResultStatus" class="form-select form-select-sm" style="min-width: 150px">
+                                            <option value="">Not captured</option>
+                                            <option value="@ResultStatuses.Finished">Finished</option>
+                                            <option value="@ResultStatuses.DidNotFinish">Did not finish</option>
+                                            <option value="@ResultStatuses.DidNotStart">Did not start</option>
+                                            <option value="@ResultStatuses.Disqualified">Disqualified</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <label class="visually-hidden" for="finish-@i">Finish time for @row.ParticipantName</label>
+                                        <input id="finish-@i" name="rows[@i].FinishTime" type="time" step="1" class="form-control form-control-sm" style="min-width: 130px" />
+                                    </td>
+                                    <td colspan="3" class="small text-secondary">Positions are worked out when you save.</td>
+                                }
+                                else
+                                {
+                                    <td colspan="5" class="small text-secondary">Not captured</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (Model.CanCapture && Model.Outstanding > 0)
+        {
+            <div class="p-3 border-top d-flex flex-wrap gap-3 align-items-center justify-content-between">
+                <div class="small text-secondary">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Enter the clock time each finisher crossed the line (start was @Display.Time(category.StartTime)). Leave a runner as "Not captured" to do them later.
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save results</button>
+            </div>
+        }
+    </div>
+</form>
+
+@foreach (var row in Model.Rows.Where(r => r.Existing is not null))
+{
+    <form id="delete-@row.Existing!.ResultId" asp-action="Delete" asp-route-id="@row.Existing.ResultId" method="post"
+          data-confirm="Remove the result for @row.ParticipantName so it can be captured again?"></form>
+}

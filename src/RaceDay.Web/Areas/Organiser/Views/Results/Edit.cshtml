@@ -1,0 +1,64 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model ResultEditViewModel
+@{
+    var result = Model.Result!;
+    ViewData["Title"] = $"Correct result · {result.ParticipantName}";
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-controller="Events" asp-action="Details" asp-route-id="@result.EventId">@result.EventName</a> <span>/</span>
+    <a asp-action="Capture" asp-route-categoryId="@result.CategoryId">@result.CategoryName</a> <span>/</span> <span>Correct result</span>
+</nav>
+
+<div class="rd-page-header">
+    <div>
+        <span class="rd-eyebrow">Correct a result</span>
+        <h1>@result.ParticipantName</h1>
+        <p><span class="rd-bib me-2">@result.RaceNumber</span> @result.CategoryName · gun start @Display.Time(result.StartTime)</p>
+    </div>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.ResultId" method="post" class="rd-form-section" style="max-width: 760px" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger rd-flash" role="alert"></div>
+    <div class="row g-3">
+        <div class="col-sm-6">
+            <label asp-for="ResultStatus" class="form-label"></label>
+            <select asp-for="ResultStatus" class="form-select">
+                <option value="@ResultStatuses.Finished">Finished</option>
+                <option value="@ResultStatuses.DidNotFinish">Did not finish</option>
+                <option value="@ResultStatuses.DidNotStart">Did not start</option>
+                <option value="@ResultStatuses.Disqualified">Disqualified</option>
+            </select>
+            <span asp-validation-for="ResultStatus"></span>
+        </div>
+        <div class="col-sm-6">
+            <label asp-for="FinishTime" class="form-label"></label>
+            <input asp-for="FinishTime" type="time" step="1" class="form-control" />
+            <span asp-validation-for="FinishTime"></span>
+        </div>
+        <div class="col-sm-4">
+            <label asp-for="OverallPosition" class="form-label"></label>
+            <input asp-for="OverallPosition" type="number" min="1" class="form-control" />
+            <span asp-validation-for="OverallPosition"></span>
+        </div>
+        <div class="col-sm-4">
+            <label asp-for="GenderPosition" class="form-label"></label>
+            <input asp-for="GenderPosition" type="number" min="1" class="form-control" />
+            <span asp-validation-for="GenderPosition"></span>
+        </div>
+        <div class="col-sm-4">
+            <label asp-for="AgeGroupPosition" class="form-label"></label>
+            <input asp-for="AgeGroupPosition" type="number" min="1" class="form-control" />
+            <span asp-validation-for="AgeGroupPosition"></span>
+        </div>
+        <div class="col-12 form-text">A finisher needs a finish time and an overall position. For DNF, DNS and DQ the time and positions are cleared.</div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i> Save correction</button>
+        <a class="btn btn-light-subtle" asp-action="Capture" asp-route-categoryId="@result.CategoryId">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

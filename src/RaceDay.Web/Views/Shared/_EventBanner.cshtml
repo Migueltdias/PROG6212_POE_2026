@@ -1,0 +1,33 @@
+@model EventSummary
+@{
+    var showDate = ViewData["ShowDate"] as bool? ?? true;
+    var showStatus = ViewData["ShowStatus"] as bool? ?? false;
+    var extraClass = ViewData["BannerClass"] as string ?? string.Empty;
+}
+<div class="rd-banner @extraClass">
+    @if (!string.IsNullOrWhiteSpace(Model.BannerImageUrl))
+    {
+        <img src="@Model.BannerImageUrl" alt="Banner for @Model.EventName" loading="lazy" />
+    }
+    else
+    {
+        <div class="rd-banner-placeholder rd-banner-placeholder--@Display.BannerVariant(Model.Disciplines)" aria-hidden="true">
+            <i class="bi @Display.DisciplineIcon(Model.Disciplines.FirstOrDefault())"></i>
+            <span class="rd-banner-initials">@Display.Initials(Model.EventName)</span>
+        </div>
+    }
+
+    @if (showDate)
+    {
+        <div class="rd-date-badge" aria-hidden="true">
+            <div class="rd-date-month">@Display.Month(Model.EventDate)</div>
+            <div class="rd-date-day">@Model.EventDate.Day</div>
+            <div class="rd-date-year">@Model.EventDate.Year</div>
+        </div>
+    }
+
+    @if (showStatus)
+    {
+        <div class="rd-banner-status"><status-badge value="@Model.EventStatus" /></div>
+    }
+</div>

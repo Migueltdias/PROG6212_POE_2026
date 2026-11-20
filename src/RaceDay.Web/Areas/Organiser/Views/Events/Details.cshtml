@@ -1,0 +1,183 @@
+@using RaceDay.Web.Areas.Organiser.Models
+@model EventDetailsViewModel
+@{
+    var ev = Model.Event;
+    ViewData["Title"] = ev.EventName;
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-action="Index">My events</a> <span>/</span> <span>@ev.EventName</span>
+</nav>
+
+<div class="rd-detail-hero">
+    <partial name="_EventBanner" model="ev" view-data='new ViewDataDictionary(ViewData) { ["ShowDate"] = false }' />
+    <div class="rd-detail-hero-text">
+        <status-badge value="@ev.EventStatus" />
+        <h1>@ev.EventName</h1>
+        <div class="opacity-75"><i class="bi bi-calendar3 me-1"></i>@Display.LongDate(ev.EventDate) · <i class="bi bi-geo-alt-fill ms-1 me-1"></i>@ev.VenueName, @ev.City</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="row g-3 mb-4">
+            <div class="col-sm-4">
+                <a class="rd-stat text-decoration-none" asp-controller="Enrolments" asp-action="Index" asp-route-eventId="@ev.EventId">
+                    <div class="rd-stat-icon rd-stat-icon--mint"><i class="bi bi-people-fill"></i></div>
+                    <div><div class="rd-stat-value">@ev.EnteredCount</div><div class="rd-stat-label">Entries</div></div>
+                </a>
+            </div>
+            <div class="col-sm-4">
+                <div class="rd-stat">
+                    <div class="rd-stat-icon"><i class="bi bi-check2-circle"></i></div>
+                    <div><div class="rd-stat-value">@ev.ConfirmedCount</div><div class="rd-stat-label">Confirmed</div></div>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="rd-stat">
+                    <div class="rd-stat-icon rd-stat-icon--sun"><i class="bi bi-hourglass-split"></i></div>
+                    <div><div class="rd-stat-value">@ev.PendingCount</div><div class="rd-stat-label">Pending payment</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rd-card mb-4">
+            <div class="rd-card-header">
+                <h2><i class="bi bi-signpost-split-fill"></i> Categories</h2>
+                <a class="btn btn-sm btn-light-subtle" asp-controller="Categories" asp-action="Index" asp-route-eventId="@ev.EventId">
+                    <i class="bi bi-sliders me-1"></i> Manage categories
+                </a>
+            </div>
+            @if (ev.Categories.Count == 0)
+            {
+                <div class="rd-empty">
+                    <i class="bi bi-signpost"></i>
+                    <h3>No categories yet</h3>
+                    <p>Add at least one distance before publishing.</p>
+                    <a class="btn btn-primary" asp-controller="Categories" asp-action="Index" asp-route-eventId="@ev.EventId">Add a category</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table rd-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Category</th>
+                                <th scope="col">Type</th>
+                                <th scope="col" class="text-end">Distance</th>
+                                <th scope="col" class="text-end">Fee</th>
+                                <th scope="col">Start</th>
+                                <th scope="col" class="text-end">Min age</th>
+                                <th scope="col">Entered</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var category in ev.Categories)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@category.CategoryName</td>
+                                    <td><span class="rd-chip"><i class="bi @Display.DisciplineIcon(category.Discipline)"></i>@category.Discipline</span></td>
+                                    <td class="text-end fw-bold">@Display.Distance(category.DistanceKm)</td>
+                                    <td class="text-end">@Display.Money(category.EntryFee)</td>
+                                    <td>@Display.Time(category.StartTime)</td>
+                                    <td class="text-end">@category.MinimumAge</td>
+                                    <td style="min-width: 150px">
+                                        <div class="small">@category.EnteredCount of @category.MaxParticipants</div>
+                                        <div class="rd-places"><span style="width:@Display.Percent(category.EnteredCount, category.MaxParticipants)"></span></div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="rd-card">
+            <div class="rd-card-header"><h2><i class="bi bi-info-circle"></i> Event details</h2></div>
+            <div class="p-4">
+                @if (!string.IsNullOrWhiteSpace(ev.Description))
+                {
+                    <p class="mb-3" style="white-space: pre-line">@ev.Description</p>
+                }
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="rd-fact"><i class="bi bi-calendar-event"></i><div><div class="rd-fact-label">Race day</div><div class="rd-fact-value">@Display.LongDate(ev.EventDate)</div></div></div>
+                        <div class="rd-fact"><i class="bi bi-clock"></i><div><div class="rd-fact-label">First start</div><div class="rd-fact-value">@Display.Time(ev.StartTime)</div></div></div>
+                        <div class="rd-fact"><i class="bi bi-door-open"></i><div><div class="rd-fact-label">Entries</div><div class="rd-fact-value">@Display.Date(ev.RegistrationOpens) to @Display.Date(ev.RegistrationCloses)</div></div></div>
+                        <div class="rd-fact"><i class="bi bi-geo-alt"></i><div><div class="rd-fact-label">Venue</div><div class="rd-fact-value">@ev.VenueName, @ev.City, @ev.Province</div></div></div>
+                    </div>
+                    <div class="col-md-6">
+                        <iframe class="rd-map" title="Map of @ev.VenueName" loading="lazy" src="@Display.MapEmbedUrl(ev.Latitude, ev.Longitude)"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="rd-card mb-4">
+            <div class="rd-card-header"><h2><i class="bi bi-toggles"></i> Status</h2><status-badge value="@ev.EventStatus" /></div>
+            <div class="p-4 d-grid gap-2">
+                @switch (ev.EventStatus)
+                {
+                    case EventStatuses.Draft:
+                        <p class="small text-secondary mb-2">Only you can see a draft. Publish it to open entries to participants.</p>
+                        <form asp-action="Status" asp-route-id="@ev.EventId" method="post">
+                            <input type="hidden" name="status" value="@EventStatuses.Published" />
+                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-megaphone-fill me-1"></i> Publish event</button>
+                        </form>
+                        <form asp-action="Status" asp-route-id="@ev.EventId" method="post" data-confirm="Cancel this event? This cannot be undone.">
+                            <input type="hidden" name="status" value="@EventStatuses.Cancelled" />
+                            <button type="submit" class="btn btn-light-subtle w-100"><i class="bi bi-x-octagon me-1"></i> Cancel event</button>
+                        </form>
+                        break;
+                    case EventStatuses.Published:
+                        @if (Model.HasBeenRun)
+                        {
+                            <p class="small text-secondary mb-2">The race has been run. Capture the results, then complete the event to publish them.</p>
+                            <a class="btn btn-primary w-100" asp-controller="Results" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-stopwatch me-1"></i> Capture results</a>
+                        }
+                        else
+                        {
+                            <p class="small text-secondary mb-2">Participants can find this event and enter until @Display.Date(ev.RegistrationCloses).</p>
+                        }
+                        <form asp-action="Status" asp-route-id="@ev.EventId" method="post" data-confirm="Cancel this event? Entries are kept on record, but this cannot be undone.">
+                            <input type="hidden" name="status" value="@EventStatuses.Cancelled" />
+                            <button type="submit" class="btn btn-light-subtle w-100"><i class="bi bi-x-octagon me-1"></i> Cancel event</button>
+                        </form>
+                        break;
+                    case EventStatuses.Completed:
+                        <p class="small text-secondary mb-2">This event is complete and its results are published.</p>
+                        <a class="btn btn-navy w-100" asp-controller="Results" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-trophy me-1"></i> View results</a>
+                        break;
+                    default:
+                        <p class="small text-secondary mb-0">This event was cancelled. Its entries are kept on record.</p>
+                        break;
+                }
+            </div>
+        </div>
+
+        <div class="rd-card mb-4">
+            <div class="rd-card-header"><h2><i class="bi bi-lightning-charge"></i> Manage</h2></div>
+            <div class="list-group list-group-flush rounded-bottom">
+                @if (!Model.IsClosedForChanges)
+                {
+                    <a class="list-group-item list-group-item-action py-3" asp-action="Edit" asp-route-id="@ev.EventId"><i class="bi bi-pencil-square text-orange me-2"></i>Edit details and banner</a>
+                }
+                <a class="list-group-item list-group-item-action py-3" asp-controller="Categories" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-sliders text-orange me-2"></i>Categories (@ev.CategoryCount)</a>
+                <a class="list-group-item list-group-item-action py-3" asp-controller="Enrolments" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-people text-orange me-2"></i>Enrolments (@ev.EnteredCount)</a>
+                <a class="list-group-item list-group-item-action py-3" asp-controller="Results" asp-action="Index" asp-route-eventId="@ev.EventId"><i class="bi bi-stopwatch text-orange me-2"></i>Results</a>
+            </div>
+        </div>
+
+        <div class="rd-card border border-danger-subtle">
+            <div class="rd-card-header"><h2 class="text-danger"><i class="bi bi-trash3 text-danger"></i> Delete</h2></div>
+            <div class="p-4">
+                <p class="small text-secondary">Deleting removes the event, its categories and any unconfirmed entries. An event with confirmed entries cannot be deleted; cancel it instead.</p>
+                <a class="btn btn-outline-danger w-100" asp-action="Delete" asp-route-id="@ev.EventId">Delete this event</a>
+            </div>
+        </div>
+    </div>
+</div>

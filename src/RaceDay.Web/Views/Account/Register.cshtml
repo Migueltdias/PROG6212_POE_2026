@@ -1,0 +1,111 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Create your account";
+}
+
+<div class="rd-auth">
+    <aside class="rd-auth-aside">
+        <div>
+            <span class="rd-eyebrow text-white-50">Join RaceDay</span>
+            <h2 class="mt-3">One account. Every race.</h2>
+            <ul class="list-unstyled mt-4 mb-0">
+                <li><i class="bi bi-check2-circle"></i>Choose your role once: run events or take part in them</li>
+                <li><i class="bi bi-check2-circle"></i>Your password is stored only as a salted hash</li>
+                <li><i class="bi bi-check2-circle"></i>Organisers must be at least 18 years old</li>
+            </ul>
+        </div>
+        <img src="~/img/logo.svg" alt="" width="64" height="64" />
+    </aside>
+
+    <section class="rd-auth-form">
+        <h1 class="h2 mb-1">Create your account</h1>
+        <p class="text-secondary mb-4">Already registered? <a asp-action="Login">Sign in</a>.</p>
+
+        <form asp-action="Register" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger rd-flash" role="alert"></div>
+
+            <fieldset class="mb-4">
+                <legend class="form-label">I want to</legend>
+                <div class="rd-role-picker">
+                    <div>
+                        <input type="radio" asp-for="Role" value="@Roles.Participant" id="role-participant" />
+                        <label for="role-participant">
+                            <i class="bi bi-person-arms-up"></i>
+                            <div class="fw-bold mt-1">Take part</div>
+                            <div class="small text-secondary">Enter events and follow my results</div>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" asp-for="Role" value="@Roles.Organiser" id="role-organiser" />
+                        <label for="role-organiser">
+                            <i class="bi bi-megaphone"></i>
+                            <div class="fw-bold mt-1">Organise</div>
+                            <div class="small text-secondary">Create events and capture results</div>
+                        </label>
+                    </div>
+                </div>
+                <span asp-validation-for="Role"></span>
+            </fieldset>
+
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <label asp-for="FirstName" class="form-label"></label>
+                    <input asp-for="FirstName" class="form-control" autocomplete="given-name" />
+                    <span asp-validation-for="FirstName"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="LastName" class="form-label"></label>
+                    <input asp-for="LastName" class="form-control" autocomplete="family-name" />
+                    <span asp-validation-for="LastName"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" autocomplete="email" />
+                    <span asp-validation-for="Email"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="PhoneNumber" class="form-label"></label>
+                    <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" placeholder="0821234567" />
+                    <span asp-validation-for="PhoneNumber"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="DateOfBirth" class="form-label"></label>
+                    <input asp-for="DateOfBirth" type="date" class="form-control" autocomplete="bday" />
+                    <span asp-validation-for="DateOfBirth"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Gender" class="form-label"></label>
+                    <select asp-for="Gender" class="form-select">
+                        <option value="">Choose…</option>
+                        @foreach (var (code, label) in Genders.All)
+                        {
+                            <option value="@code">@label</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Gender"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Password" class="form-label"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="new-password" aria-describedby="passwordHelp" />
+                    <span asp-validation-for="Password"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword"></span>
+                </div>
+                <div class="col-12">
+                    <div id="passwordHelp" class="form-text">8 or more characters, with an upper-case letter, a lower-case letter and a digit.</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
+                <i class="bi bi-lightning-charge-fill me-1"></i> Create account
+            </button>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

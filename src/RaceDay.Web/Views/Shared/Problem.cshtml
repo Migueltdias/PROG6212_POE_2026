@@ -1,0 +1,25 @@
+@model ProblemViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var user = Context.GetSessionUser();
+    var (action, controller, area) = user is null ? ("Index", "Home", "") : RoleHome.For(user.Role);
+}
+
+<div class="rd-card rd-empty mx-auto" style="max-width: 680px;">
+    <i class="bi @Model.Icon text-orange"></i>
+    <span class="rd-eyebrow">Error @Model.StatusCode</span>
+    <h1 class="h2 mt-2">@Model.Title</h1>
+    <p class="mb-4">@Model.Message</p>
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a class="btn btn-primary" asp-area="@area" asp-controller="@controller" asp-action="@action">
+            <i class="bi bi-house-door me-1"></i> Go to my home page
+        </a>
+        <button type="button" class="btn btn-light-subtle" onclick="history.back()">
+            <i class="bi bi-arrow-left me-1"></i> Go back
+        </button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.RequestId))
+    {
+        <p class="small text-secondary mt-4 mb-0">Reference: <code>@Model.RequestId</code></p>
+    }
+</div>

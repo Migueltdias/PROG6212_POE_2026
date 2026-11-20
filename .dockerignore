@@ -1,0 +1,23 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/TestResults/
+**/node_modules/
+
+.git/
+.github/
+docs/
+tools/
+tests/
+POE screenshots/
+Part 1 Docs/
+*.md
+
+**/appsettings.Development.json
+**/appsettings.*.local.json
+**/secrets.json
+**/.env
+**/.env.*

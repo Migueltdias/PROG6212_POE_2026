@@ -1,0 +1,55 @@
+﻿@{
+    var user = Context.GetSessionUser();
+    var fullWidth = ViewData["FullWidth"] is true;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="RaceDay: enter South African road races, cycle tours and fun walks, and follow your results." />
+    <meta name="theme-color" content="#0b1d33" />
+    <title>@ViewData["Title"] · RaceDay</title>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="rd-role-@(user?.Role.ToLowerInvariant() ?? "guest")">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-light z-3" href="#main">Skip to content</a>
+
+    <partial name="_Navbar" model="user" />
+
+    <main id="main" class="rd-main">
+        @if (fullWidth)
+        {
+            @RenderBody()
+        }
+        else
+        {
+            <div class="container py-4 py-lg-5">
+                <partial name="_Flash" />
+                @RenderBody()
+            </div>
+        }
+    </main>
+
+    <footer class="rd-footer">
+        <div class="container d-flex flex-wrap gap-3 align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <span class="rd-brand"><img src="~/img/logo.svg" alt="" /><span class="rd-wordmark">Race<span>Day</span></span></span>
+                <span>Every finish line starts here.</span>
+            </div>
+            <div>PROG6212 POE · Miguel Dias · ST10255804</div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

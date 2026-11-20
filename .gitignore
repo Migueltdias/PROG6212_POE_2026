@@ -1,0 +1,110 @@
+# ---------------------------------------------------------------------------
+# PROG6212 RaceDay
+# Part 1 holds only planning documents, but Parts 2 and 3 add a C# API and an
+# MVC app to this same repository, so the .NET rules are in place from the start.
+# ---------------------------------------------------------------------------
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+TestResults/
+
+# ---------------------------------------------------------------------------
+# Secrets - never commit connection strings, API keys or tokens.
+# Part 2 uses a JWT signing key; Part 3 adds an Azure Blob Storage connection
+# string and a weather API key. All belong in user secrets or environment
+# variables, not in this repository.
+# ---------------------------------------------------------------------------
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+*.env
+.env.*
+!.env.example
+
+# SQL Server local artefacts
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.dbmdl
+*.jfm
+
+# Docker (Part 3)
+docker-compose.override.yml
+
+# Azurite (local Azure Blob Storage emulator) data
+.azurite/
+__blobstorage__/
+__azurite_db_*.json
+
+# Python - the ERD generation tool in tools/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# Deliberately NOT ignored - these are graded deliverables and must be committed:
+#   docs/RaceDay_ERD.png        the ERD image
+#   docs/RaceDay_ERD.mmd        the ERD text source
+#   docs/API_Endpoint_Plan.md   the endpoint plan
+#   docs/RaceDay_Schema.sql     the database script
+#   docs/ci-green-build.png     the CI screenshot
+#   .github/workflows/ci.yml    the CI pipeline
+# ---------------------------------------------------------------------------
+
+# Assignment brief screenshots - reference material, not a deliverable.
+# They stay on disk locally but are not part of the submitted repository.
+Screenshot*.png
+
+# Reference material kept locally as style guides only, never committed:
+# the PROG7314 document (another module) and the IIE referencing guide.
+PROG7314*.pdf
+*IIE Harvard Style Reference Guide*.pdf
+
+# draw.io reference exports kept locally as a style guide only.
+docs/draw.io examples/

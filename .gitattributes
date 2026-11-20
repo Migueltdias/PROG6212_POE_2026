@@ -1,0 +1,17 @@
+# Normalise line endings so the Windows working copy and the Ubuntu CI runner
+# agree on file contents.
+* text=auto
+
+*.sql  text eol=crlf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.py   text eol=lf
+*.mmd  text eol=lf
+
+*.png  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.ico  binary
+*.jpg  binary
+*.webp binary

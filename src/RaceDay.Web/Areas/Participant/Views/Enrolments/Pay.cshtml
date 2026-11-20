@@ -1,0 +1,38 @@
+@model Enrolment
+@{
+    ViewData["Title"] = "Pay your entry fee";
+}
+
+<nav class="rd-breadcrumb" aria-label="Breadcrumb">
+    <a asp-action="Index">My events</a> <span>/</span> <span>Pay</span>
+</nav>
+
+<div class="rd-card mx-auto overflow-hidden" style="max-width: 640px;">
+    <div class="rd-countdown rounded-0 shadow-none">
+        <span class="rd-eyebrow text-white-50">Entry fee</span>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-2">
+            <div>
+                <h1 class="h2 text-white mb-1">@Model.EventName</h1>
+                <div class="text-white-50">@Model.CategoryName · @Display.LongDate(Model.EventDate)</div>
+            </div>
+            <div class="rd-countdown-days" style="font-size: 3rem">@Display.Money(Model.EntryFee)</div>
+        </div>
+    </div>
+    <div class="p-4 p-lg-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <div class="small-caps">Race number</div>
+                <span class="rd-bib mt-1">@Model.RaceNumber</span>
+            </div>
+            <status-badge value="@Model.EnrolmentStatus" />
+        </div>
+        <p class="text-secondary">
+            Paying confirms your place. This is a demonstration checkout: no card details are taken, and a payment
+            reference is recorded against your entry.
+        </p>
+        <form asp-action="Pay" asp-route-id="@Model.EnrolmentId" method="post" class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-credit-card-2-front me-1"></i> Pay @Display.Money(Model.EntryFee) now</button>
+            <a class="btn btn-light-subtle" asp-action="Index">Pay later</a>
+        </form>
+    </div>
+</div>
